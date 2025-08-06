@@ -56,9 +56,7 @@ export class Lead {
   billUri?: string;
 
   @Column({
-    type: "enum",
-    enum: GroupShift,
-    nullable: true,
+    type: "varchar", nullable: true,
   })
   shift?: GroupShift;
 

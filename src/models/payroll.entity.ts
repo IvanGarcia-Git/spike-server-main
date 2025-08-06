@@ -24,9 +24,7 @@ import {
     userId: number;
   
     @Column({
-      type: "enum",
-      enum: PayrollState,
-      default: PayrollState.Pendiente,
+      type: "varchar", default: PayrollState.Pendiente,
     })
     state: PayrollState;
   

@@ -24,7 +24,7 @@ export class Task {
   @Column("varchar", { length: 255 })
   subject: string;
 
-  @Column("timestamp")
+  @Column("datetime")
   startDate: Date;
 
   @Column()

@@ -89,9 +89,7 @@ export class Rate {
   renewable: boolean;
 
   @Column({
-    type: "enum",
-    enum: RateTypes,
-    nullable: true,
+    type: "varchar", nullable: true,
   })
   type?: RateTypes;
 

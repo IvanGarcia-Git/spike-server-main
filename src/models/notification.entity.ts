@@ -36,8 +36,7 @@ export class Notification {
   batchId: string;
 
   @Column({
-    type: "enum",
-    enum: EventType,
+    type: "varchar"
   })
   eventType: EventType;
 

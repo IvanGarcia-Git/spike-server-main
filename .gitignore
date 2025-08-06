@@ -3,3 +3,6 @@ dist
 .serverless
 .env
 .DS_Store
+
+# YoYo AI version control directory
+.yoyo/

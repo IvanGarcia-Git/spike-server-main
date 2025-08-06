@@ -26,8 +26,7 @@ export class Company {
   name: string;
 
   @Column({
-    type: "enum",
-    enum: CompanyType,
+    type: "varchar"
   })
   type: CompanyType;
 

@@ -130,8 +130,7 @@ export class User {
   time?: string;
 
   @Column({
-    type: "enum",
-    enum: UserShift,
+    type: "varchar",
     nullable: true,
   })
   shift?: UserShift;

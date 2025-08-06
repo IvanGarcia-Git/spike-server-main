@@ -35,9 +35,7 @@ export class Absence {
   endDate: string;
 
   @Column({
-    type: "enum",
-    enum: AbsenceType,
-    default: AbsenceType.Vacaciones,
+    type: "varchar", default: AbsenceType.Vacaciones,
   })
   type: AbsenceType;
 
@@ -45,9 +43,7 @@ export class Absence {
   description: string;
 
   @Column({
-    type: "enum",
-    enum: AbsenceStatus,
-    default: AbsenceStatus.Pendiente,
+    type: "varchar", default: AbsenceStatus.Pendiente,
   })
   status: AbsenceStatus;
 

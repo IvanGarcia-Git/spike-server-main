@@ -25,7 +25,7 @@ export class Folder {
   @Column({ type: "varchar", length: 255 })
   name: string;
 
-  @Column({ type: "enum", enum: ["private", "shared"], default: "private" })
+  @Column({ type: "varchar", default: "private" })
   type: "private" | "shared";
 
   @Column("boolean", {

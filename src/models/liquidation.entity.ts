@@ -40,9 +40,7 @@ export class Liquidation {
   date: string;
 
   @Column({
-    type: "enum",
-    enum: LiquidationStatus,
-    default: LiquidationStatus.PENDIENTE,
+    type: "varchar", default: LiquidationStatus.PENDIENTE,
   })
   status: LiquidationStatus;
 

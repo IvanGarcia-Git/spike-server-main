@@ -66,9 +66,7 @@ export class Customer {
   newCreation?: boolean;
 
   @Column({
-    type: "enum",
-    enum: CustomerType,
-    nullable: true,
+    type: "varchar", nullable: true,
   })
   type?: CustomerType;
 

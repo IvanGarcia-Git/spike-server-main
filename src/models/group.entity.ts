@@ -33,8 +33,7 @@ export class Group {
   description: string;
 
   @Column({
-    type: "enum",
-    enum: GroupShift,
+    type: "varchar"
   })
   shift: GroupShift;
 

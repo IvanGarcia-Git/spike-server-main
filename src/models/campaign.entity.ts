@@ -38,15 +38,13 @@ export class Campaign {
   name: string;
 
   @Column({
-    type: "enum",
-    enum: CampaignType,
+    type: "varchar",
     default: CampaignType.AUTOMATIC,
   })
   type: CampaignType;
 
   @Column({
-    type: "enum",
-    enum: CampaignSector,
+    type: "varchar",
     nullable: true,
   })
   sector?: CampaignSector;

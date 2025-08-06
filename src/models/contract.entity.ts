@@ -62,8 +62,7 @@ export class Contract {
   isDraft: boolean;
 
   @Column({
-    type: "enum",
-    enum: ContractType,
+    type: "varchar"
   })
   type: ContractType;
 

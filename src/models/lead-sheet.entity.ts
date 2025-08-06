@@ -61,8 +61,7 @@ export class LeadSheet {
   newCreation: boolean;
 
   @Column({
-    type: "enum",
-    enum: CustomerType,
+    type: "varchar"
   })
   type: CustomerType;
 

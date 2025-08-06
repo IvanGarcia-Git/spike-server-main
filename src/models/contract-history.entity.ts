@@ -25,8 +25,7 @@ export class ContractHistory {
   rateName: string;
 
   @Column({
-    type: "enum",
-    enum: ContractHistoryStatus,
+    type: "varchar"
   })
   status: ContractHistoryStatus;
 
