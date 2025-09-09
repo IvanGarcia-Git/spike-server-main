@@ -20,6 +20,11 @@ import { ContractType } from "../models/contract.entity";
 import { Customer } from "../models/customer.entity";
 
 export module ContractsService {
+  export const count = async (): Promise<number> => {
+    const contractRepository = dataSource.getRepository(Contract);
+    return await contractRepository.count();
+  };
+
   export const create = async (contractData: Partial<Contract>): Promise<Contract> => {
     try {
       const contractRepository = dataSource.getRepository(Contract);

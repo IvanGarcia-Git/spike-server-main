@@ -22,6 +22,8 @@ router.post("/from-webhook", LeadsController.createFromWebhook);
 
 router.post("/assign-to-queue", authenticateJWT, LeadsController.assignToQueue);
 
+router.get("/count", authenticateJWT, LeadsController.count);
+
 router.get("/:leadUuid", authenticateJWT, LeadsController.getOne);
 
 router.delete("/:leadUuid", authenticateJWT, LeadsController.deleteLead);

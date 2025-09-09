@@ -17,6 +17,11 @@ import { AutomaticCreateLeadDTO } from "../dto/automatic-lead-create.dto";
 import { LeadDocument } from "../models/lead-document.entity";
 
 export module LeadsService {
+  export const count = async (): Promise<number> => {
+    const leadRepository = dataSource.getRepository(Lead);
+    return await leadRepository.count();
+  };
+
   export const create = async (
     leadData: AutomaticCreateLeadDTO,
     billFile?: Express.Multer.File

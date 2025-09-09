@@ -16,6 +16,8 @@ router.post(
   ContractsController.create
 );
 
+router.get("/count", authenticateJWT, ContractsController.count);
+
 router.get("/:uuid", authenticateJWT, ContractsController.get);
 
 router.get("/history/:uuid", authenticateJWT, ContractsController.getHistory);

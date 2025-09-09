@@ -2,6 +2,7 @@ require("dotenv").config();
 //import bodyParser from "body-parser";
 import campaignsRouter from "./routes/campaigns.router";
 import channelsRouter from "./routes/channels.router";
+import comparativasRouter from "./routes/comparativa.route";
 import companiesRouter from "./routes/companies.router";
 import contractsRouter from "./routes/contracts.router";
 import contractCommentsRouter from "./routes/contract-comment.router"
@@ -39,6 +40,9 @@ import holidayRouter from "./routes/holiday.router";
 import commissionAssignmentsRouter from "./routes/commission-assignments.router";
 import liquidationsRouter from "./routes/liquidations.router";
 import liquidationContractsRouter from "./routes/liquidation-contracts.router";
+import dashboardRouter from "./routes/dashboard.routes";
+import noteRouter from "./routes/note.route";
+import noteFolderRouter from "./routes/note-folder.route";
 import { createServer } from "http";
 
 const PORT = process.env.PORT || 3000;
@@ -52,9 +56,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     origin: "*",
-    allowedHeaders: "*",
+    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    preflightContinue: true,
+    credentials: true,
+    optionsSuccessStatus: 200
   })
 );
 
@@ -65,6 +70,7 @@ app.use("/webhook/landing", landingWebhook);
 //Routing
 app.use("/campaigns", campaignsRouter);
 app.use("/channels", channelsRouter);
+app.use("/comparativas", comparativasRouter);
 app.use("/companies", companiesRouter);
 app.use("/contracts", contractsRouter);
 app.use("/contract-comments", contractCommentsRouter);
@@ -96,6 +102,9 @@ app.use("/users-accessibility", userAccessibilityRoutes);
 app.use("/users-share-leads", userShareLeadsRoutes);
 app.use("/liquidations", liquidationsRouter);
 app.use("/liquidation-contracts", liquidationContractsRouter);
+app.use("/dashboard", dashboardRouter);
+app.use("/notes", noteRouter);
+app.use("/note-folders", noteFolderRouter);
 
 //Custom middlewares
 app.use(errorMiddleware);

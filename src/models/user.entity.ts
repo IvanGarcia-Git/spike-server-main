@@ -28,6 +28,8 @@ import { UserShift } from "../enums/user-shift.enum";
 import { CommissionAssignment } from "./commission-assignment.entity";
 import { Liquidation } from "./liquidation.entity";
 import { UserDocument } from "./user-document.entity";
+import { Note } from "./note.entity";
+import { NoteFolder } from "./note-folder.entity";
 
 //Also dynamic keys for user groups e.j "group${group.id}"
 export enum LeadPriority {
@@ -211,6 +213,12 @@ export class User {
 
   @OneToMany(() => UserDocument, (document) => document.user)
   documents: UserDocument[];
+
+  @OneToMany(() => Note, (note) => note.user)
+  notes: Note[];
+
+  @OneToMany(() => NoteFolder, (noteFolder) => noteFolder.user)
+  noteFolders: NoteFolder[];
 
   @BeforeInsert()
   @BeforeUpdate()

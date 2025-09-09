@@ -4,6 +4,15 @@ import { LeadLogsService } from "../services/lead-logs.service";
 import { LeadsService } from "../services/leads.service";
 
 export module LeadsController {
+  export const count = async (req, res, next) => {
+    try {
+      const count = await LeadsService.count();
+      res.json({ count });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   export const create = async (req, res, next) => {
     const leadData = req.body;
     const billFile = req.file;

@@ -3,6 +3,15 @@ import { Roles } from "../enums/roles.enum";
 import { AwsHelper } from "../helpers/aws.helper";
 
 export module ContractsController {
+  export const count = async (req, res, next) => {
+    try {
+      const count = await ContractsService.count();
+      res.json({ count });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   export const create = async (req, res, next) => {
     try {
       const { userId } = req.user;
