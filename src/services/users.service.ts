@@ -40,6 +40,7 @@ export module UsersService {
       newUser.shift = userDto.shift ?? null;
       newUser.phone = userDto.phone ?? null;
       newUser.iban = userDto.iban ?? null;
+      newUser.leadPriorities = [];
 
       const { groupId, parentGroupId, isManager } = defineGroupStructureForTypeUser(
         userDto.role,
