@@ -6,7 +6,7 @@ import path from "path";
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 1024 * 1024 * 1024 },
   fileFilter: (req, file, callback) => {
     var ext = path.extname(file.originalname).toLocaleLowerCase();
     if (ext !== ".png" && ext !== ".jpg" && ext !== ".jpeg") {

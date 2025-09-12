@@ -3,6 +3,7 @@ import { dataSource } from "../../app-data-source";
 import { FindOptionsRelations, FindOptionsWhere } from "typeorm";
 import { File } from "../models/file.entity";
 import { v4 as uuidv4 } from "uuid";
+import * as path from "path";
 
 export module FilesService {
   export const create = async (
@@ -18,7 +19,9 @@ export module FilesService {
         throw new Error("no-file-sent");
       }
 
-      const fileUri = await AwsHelper.uploadFileToS3(`drive/${fileUuid}`, file);
+      const fileExtension = path.extname(file.originalname);
+      const fileName = `${fileUuid}${fileExtension}`;
+      const fileUri = await AwsHelper.uploadFileToS3(`drive/${fileName}`, file);
 
       const fileSaved = await fileRepository.save({
         ...newFile,

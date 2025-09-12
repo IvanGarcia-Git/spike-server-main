@@ -1,18 +1,30 @@
 import * as AWS from "aws-sdk";
 import { v4 as uuidv4 } from "uuid";
+import { LocalStorageHelper } from "./local-storage.helper";
 
 export module AwsHelper {
+  const isS3Configured = (): boolean => {
+    return !!(
+      process.env.AWS_S3_BUCKET &&
+      process.env.AWS_ACCESS_KEY_ID &&
+      process.env.AWS_SECRET_ACCESS_KEY &&
+      process.env.AWS_REGION
+    );
+  };
   export const uploadImageToS3 = async (
     bucketPath: "company" | "channel" | "user",
     image: Express.Multer.File
   ): Promise<string> => {
-    const s3 = new AWS.S3();
-    const bucketName = process.env.AWS_BUCKET_NAME
-
     const imageUuid: string = uuidv4();
     const imageName = `${imageUuid}_${image.originalname.replace(/\s/g, "")}`;
-
     const keyPath = `${bucketPath}/${imageName}`;
+
+    if (!isS3Configured()) {
+      return await LocalStorageHelper.uploadFile(keyPath, image);
+    }
+
+    const s3 = new AWS.S3();
+    const bucketName = process.env.AWS_S3_BUCKET;
 
     const params = {
       Bucket: bucketName,
@@ -35,17 +47,21 @@ export module AwsHelper {
     contractUuid: string,
     contractDocument: Express.Multer.File
   ): Promise<{ documentUri: string; documentOriginalName: string }> => {
-    const s3 = new AWS.S3();
-    const bucketName = process.env.AWS_BUCKET_NAME
-
     const documentUuid: string = uuidv4();
     const documentOriginalName = contractDocument.originalname.replace(
       /\s/g,
       ""
     );
     const documentNameToSave = `${documentUuid}_${documentOriginalName}`;
-
     const keyPath = `contracts/${contractUuid}/${documentNameToSave}`;
+
+    if (!isS3Configured()) {
+      await LocalStorageHelper.uploadFile(keyPath, contractDocument);
+      return { documentUri: keyPath, documentOriginalName };
+    }
+
+    const s3 = new AWS.S3();
+    const bucketName = process.env.AWS_S3_BUCKET;
 
     const params = {
       Bucket: bucketName,
@@ -67,8 +83,12 @@ export module AwsHelper {
   export const deleteContractDocumentFromS3 = async (
     documentUri: string
   ): Promise<void> => {
+    if (!isS3Configured()) {
+      return await LocalStorageHelper.deleteFile(documentUri);
+    }
+
     const s3 = new AWS.S3();
-    const bucketName = process.env.AWS_BUCKET_NAME
+    const bucketName = process.env.AWS_S3_BUCKET;
 
     const params = {
       Bucket: bucketName,
@@ -92,17 +112,22 @@ export module AwsHelper {
     documentOriginalName: string;
     presignedUrl: string;
   }> => {
-    const s3 = new AWS.S3();
-    const bucketName = process.env.AWS_BUCKET_NAME
-
     const documentUuid: string = uuidv4();
     const documentOriginalName = taskCommentDocument.originalname.replace(
       /\s/g,
       ""
     );
     const documentNameToSave = `${documentUuid}_${documentOriginalName}`;
-
     const keyPath = `tasks/${taskUuid}/${documentNameToSave}`;
+
+    if (!isS3Configured()) {
+      await LocalStorageHelper.uploadFile(keyPath, taskCommentDocument);
+      const presignedUrl = getPresignedUrl(keyPath);
+      return { documentUri: keyPath, documentOriginalName, presignedUrl };
+    }
+
+    const s3 = new AWS.S3();
+    const bucketName = process.env.AWS_S3_BUCKET;
 
     const params = {
       Bucket: bucketName,
@@ -132,17 +157,22 @@ export module AwsHelper {
     documentOriginalName: string;
     presignedUrl: string;
   }> => {
-    const s3 = new AWS.S3();
-    const bucketName = process.env.AWS_BUCKET_NAME
-
     const documentUuid: string = uuidv4();
     const documentOriginalName = contractCommentDocument.originalname.replace(
       /\s/g,
       ""
     );
     const documentNameToSave = `${documentUuid}_${documentOriginalName}`;
-
     const keyPath = `contracts/${contractUuid}/${documentNameToSave}`;
+
+    if (!isS3Configured()) {
+      await LocalStorageHelper.uploadFile(keyPath, contractCommentDocument);
+      const presignedUrl = getPresignedUrl(keyPath);
+      return { documentUri: keyPath, documentOriginalName, presignedUrl };
+    }
+
+    const s3 = new AWS.S3();
+    const bucketName = process.env.AWS_S3_BUCKET;
 
     const params = {
       Bucket: bucketName,
@@ -168,14 +198,17 @@ export module AwsHelper {
     documentType: "reminders" | "lead" |"leadCalls" | "leadBill" | "notifications" | "users",
     document: Express.Multer.File
   ): Promise<string> => {
-    const s3 = new AWS.S3();
-    const bucketName = process.env.AWS_BUCKET_NAME
-
     const documentUuid: string = uuidv4();
     const documentOriginalName = document.originalname.replace(/\s/g, "");
     const documentNameToSave = `${documentUuid}_${documentOriginalName}`;
-
     const keyPath = `${documentType}/${documentNameToSave}`;
+
+    if (!isS3Configured()) {
+      return await LocalStorageHelper.uploadFile(keyPath, document);
+    }
+
+    const s3 = new AWS.S3();
+    const bucketName = process.env.AWS_S3_BUCKET;
 
     const params = {
       Bucket: bucketName,
@@ -198,8 +231,12 @@ export module AwsHelper {
     documentPath: string,
     document: Express.Multer.File
   ): Promise<string> => {
+    if (!isS3Configured()) {
+      return await LocalStorageHelper.uploadFile(documentPath, document);
+    }
+
     const s3 = new AWS.S3();
-    const bucketName = process.env.AWS_BUCKET_NAME
+    const bucketName = process.env.AWS_S3_BUCKET;
 
     const keyPath = documentPath;
 
@@ -223,8 +260,12 @@ export module AwsHelper {
   export const deleteFileFromS3 = async (
     fileUri: string
   ): Promise<void> => {
+    if (!isS3Configured()) {
+      return await LocalStorageHelper.deleteFile(fileUri);
+    }
+
     const s3 = new AWS.S3();
-    const bucketName = process.env.AWS_BUCKET_NAME
+    const bucketName = process.env.AWS_S3_BUCKET;
 
     const params = {
       Bucket: bucketName,
@@ -241,8 +282,13 @@ export module AwsHelper {
   };
 
   export const getPresignedUrl = (keyPath: string, expirationTime = 3600) => {
+    if (!isS3Configured()) {
+      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+      return `${baseUrl}/files/uploads/${keyPath}`;
+    }
+
     const s3 = new AWS.S3();
-    const bucketName = process.env.AWS_BUCKET_NAME
+    const bucketName = process.env.AWS_S3_BUCKET;
 
     const params = {
       Bucket: bucketName,

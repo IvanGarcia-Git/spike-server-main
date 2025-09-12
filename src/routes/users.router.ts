@@ -7,7 +7,7 @@ import path from "path";
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // Límite de 5MB
+  limits: { fileSize: 1024 * 1024 * 1024 }, // Límite de 1GB
   fileFilter: (req, file, callback) => {
     const allowedExtensions = [".png", ".jpg", ".jpeg", ".pdf", ".xlsx", ".xls"];
 

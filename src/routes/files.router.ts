@@ -3,10 +3,11 @@ import { FilesController } from "../controllers/files.controller";
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
+import * as fs from "fs";
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 1024 * 1024 * 1024 },
   fileFilter: (req, file, callback) => {
     const allowedExtensions = [
       ".png",
@@ -44,5 +45,36 @@ router.get("/shared", authenticateJWT, FilesController.getShared);
 router.get("/recent", authenticateJWT, FilesController.getRecent);
 
 router.delete("/:uuid", authenticateJWT, FilesController.remove);
+
+router.get("/uploads/*", (req, res) => {
+  try {
+    const filePath = req.params[0];
+    const fullPath = path.join(process.cwd(), "uploads", filePath);
+    
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ error: "File not found" });
+    }
+    
+    const ext = path.extname(fullPath).toLowerCase();
+    const mimeTypes = {
+      '.pdf': 'application/pdf',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.mp3': 'audio/mpeg',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.xls': 'application/vnd.ms-excel'
+    };
+    
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+    
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${path.basename(fullPath)}"`);
+    res.sendFile(fullPath);
+  } catch (error) {
+    console.error("Error serving file:", error);
+    res.status(500).json({ error: "Error serving file" });
+  }
+});
 
 export default router;
