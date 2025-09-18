@@ -156,4 +156,13 @@ export module CampaignsController {
       next(error);
     }
   };
+
+  export const getAllBasic = async (req, res, next) => {
+    try {
+      const allCampaigns = await CampaignsService.getMany();
+      res.json(allCampaigns);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

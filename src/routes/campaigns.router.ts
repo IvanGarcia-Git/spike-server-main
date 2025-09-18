@@ -15,6 +15,12 @@ router.get(
 );
 
 router.get(
+  "/basic",
+  authenticateJWT,
+  CampaignsController.getAllBasic
+);
+
+router.get(
   "/:uuid",
   authenticateJWT,
   CampaignsController.getOne
