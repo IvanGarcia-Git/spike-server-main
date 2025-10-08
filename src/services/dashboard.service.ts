@@ -538,11 +538,11 @@ export class DashboardService {
       });
 
       const ingresosTotales = contracts.reduce((sum, contract) => {
-        return sum + (Number(contract.rate?.price) || 0);
+        return sum + (Number(contract.rate?.finalPrice) || 0);
       }, 0);
 
       const gastos = contracts.reduce((sum, contract) => {
-        return sum + (Number(contract.rate?.cost) || 0);
+        return sum + (Number(contract.rate?.paymentMoney) || 0);
       }, 0);
 
       const beneficio = ingresosTotales - gastos;
@@ -597,8 +597,8 @@ export class DashboardService {
         relations: ['rate']
       });
 
-      const importeCobrado = cobradosContracts.reduce((sum, c) => sum + (Number(c.rate?.price) || 0), 0);
-      const importePorCobrar = porCobrarContracts.reduce((sum, c) => sum + (Number(c.rate?.price) || 0), 0);
+      const importeCobrado = cobradosContracts.reduce((sum, c) => sum + (Number(c.rate?.finalPrice) || 0), 0);
+      const importePorCobrar = porCobrarContracts.reduce((sum, c) => sum + (Number(c.rate?.finalPrice) || 0), 0);
 
       return {
         cobrado: {
@@ -634,7 +634,7 @@ export class DashboardService {
 
       contracts.forEach(contract => {
         const fuente = contract.channel?.name || 'Sin canal';
-        const importe = Number(contract.rate?.price) || 0;
+        const importe = Number(contract.rate?.finalPrice) || 0;
 
         if (fuentesMap.has(fuente)) {
           const existing = fuentesMap.get(fuente);
@@ -685,7 +685,7 @@ export class DashboardService {
         relations: ['rate']
       });
 
-      const ventasRealizadas = contracts.reduce((sum, c) => sum + (Number(c.rate?.price) || 0), 0);
+      const ventasRealizadas = contracts.reduce((sum, c) => sum + (Number(c.rate?.finalPrice) || 0), 0);
       const puntosRealizados = contracts.length;
 
       // Objetivo por defecto (puede ser configurable por usuario en el futuro)
@@ -731,7 +731,7 @@ export class DashboardService {
 
       contractsRecurrentes.forEach(contract => {
         const monthKey = new Date(contract.createdAt).toISOString().slice(0, 7); // YYYY-MM
-        const importe = Number(contract.rate?.price) || 0;
+        const importe = Number(contract.rate?.finalPrice) || 0;
 
         if (ingresosMap.has(monthKey)) {
           ingresosMap.set(monthKey, ingresosMap.get(monthKey) + importe);
@@ -786,7 +786,7 @@ export class DashboardService {
         relations: ['rate']
       });
 
-      const ingresosMes = contratosMes.reduce((sum, c) => sum + (Number(c.rate?.price) || 0), 0);
+      const ingresosMes = contratosMes.reduce((sum, c) => sum + (Number(c.rate?.finalPrice) || 0), 0);
       const puntosMes = contratosMes.length;
 
       // Predicción de ventas (contratos pendientes de activación)
@@ -799,7 +799,7 @@ export class DashboardService {
         relations: ['rate']
       });
 
-      const prediccionVentas = contratosPendientes.reduce((sum, c) => sum + (Number(c.rate?.price) || 0), 0);
+      const prediccionVentas = contratosPendientes.reduce((sum, c) => sum + (Number(c.rate?.finalPrice) || 0), 0);
 
       // Retrocomisiones totales
       const liquidaciones = await this.liquidationRepository.find({
