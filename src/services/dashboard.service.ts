@@ -15,34 +15,62 @@ export class DashboardService {
 
   async getGeneralStats(userId?: number) {
     try {
-      const totalContracts = await this.contractRepository.count();
-      const totalLeads = await this.leadRepository.count();
-      const totalCustomers = await this.customerRepository.count();
-      
-      // Calcular ingresos del mes actual
+      // Obtener todos los usuarios (colaboradores y agentes)
+      const allUsers = await this.userRepository.find();
+
+      // Calcular fecha del mes actual
       const currentDate = new Date();
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-      
+
+      // Inicializar contadores globales
+      let totalColaboradoresAgentes = allUsers.length;
+      let totalContratosMes = 0;
+      let totalComisionesMes = 0;
+      let totalClientesUnicos = 0;
+
+      // Calcular contratos y comisiones totales del mes para todos los usuarios
+      const contractosMes = await this.contractRepository.find({
+        where: {
+          createdAt: Between(startOfMonth, endOfMonth)
+        },
+        relations: ['user']
+      });
+
+      totalContratosMes = contractosMes.length;
+
+      // Calcular comisiones del mes (suma de todas las liquidaciones del mes)
       const monthlyLiquidations = await this.liquidationRepository.find({
         where: {
           createdAt: Between(startOfMonth, endOfMonth)
         },
         relations: ['liquidationContracts']
       });
-      
-      const monthlyIncome = monthlyLiquidations.reduce((sum, liq) => {
+
+      totalComisionesMes = monthlyLiquidations.reduce((sum, liq) => {
         const liquidationTotal = liq.liquidationContracts?.reduce((total, lc) => {
           return total + (Number(lc.overrideCommission) || 0);
         }, 0) || 0;
         return sum + liquidationTotal;
       }, 0);
 
+      // Calcular clientes únicos totales (de todos los usuarios)
+      const uniqueCustomers = await this.contractRepository
+        .createQueryBuilder('contract')
+        .select('COUNT(DISTINCT contract.customerId)', 'count')
+        .getRawOne();
+
+      totalClientesUnicos = Number(uniqueCustomers.count || 0);
+
       return {
-        totalClientes: totalCustomers,
-        totalLeads: totalLeads,
-        totalContratos: totalContracts,
-        ingresosMes: monthlyIncome
+        totalColaboradoresAgentes: totalColaboradoresAgentes,
+        totalContratosMes: totalContratosMes,
+        totalComisionesMes: totalComisionesMes,
+        totalClientes: totalClientesUnicos,
+        // Mantener compatibilidad con código existente
+        totalLeads: 0, // Deprecated - no se usa en estadísticas generales
+        totalContratos: totalContratosMes,
+        ingresosMes: totalComisionesMes
       };
     } catch (error) {
       console.error('Error in getGeneralStats:', error);
