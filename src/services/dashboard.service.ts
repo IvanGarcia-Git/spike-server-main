@@ -1461,13 +1461,19 @@ export class DashboardService {
         return {
           cumplimientoObjetivo: { porcentaje: 0, ventas: 0, objetivo: 0 },
           historicoMensual: [],
-          totalAgentes: 0
+          historicoComisiones: [],
+          mediaMensual: { value: 0, data: [] },
+          conversion: { percentage: 0, data: [] },
+          comisionMedia: { value: 0, data: [] },
+          totalAgentes: 0,
+          contratosAgregados: { confirmados: 0, activos: 0, porActivarse: 0, retiros: 0, cancelados: 0 },
+          tiemposActivacion: []
         };
       }
 
       // Obtener cumplimiento de objetivo promedio
       let totalVentas = 0;
-      const objetivoPorAgente = 10; // Objetivo predeterminado por agente
+      const objetivoPorAgente = 140; // Objetivo predeterminado por agente
 
       for (const agente of agentes) {
         const contracts = await this.contractRepository.count({
@@ -1489,6 +1495,25 @@ export class DashboardService {
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth();
       const historico = [];
+      const historicoComisiones = [];
+
+      // Obtener contratos activos total
+      const contratosActivos = await this.contractRepository.count({
+        where: {
+          user: { id: In(agentes.map(a => a.id)) },
+          payed: true,
+          isDraft: false
+        }
+      });
+
+      // Obtener contratos por activar
+      const contratosPorActivar = await this.contractRepository.count({
+        where: {
+          user: { id: In(agentes.map(a => a.id)) },
+          payed: false,
+          isDraft: false
+        }
+      });
 
       for (let i = 5; i >= 0; i--) {
         const month = currentMonth - i;
@@ -1506,13 +1531,50 @@ export class DashboardService {
           }
         });
 
+        // Obtener comisiones del mes
+        const liquidations = await this.liquidationRepository.find({
+          where: {
+            user: { id: In(agentes.map(a => a.id)) },
+            createdAt: Between(
+              new Date(year, adjustedMonth, 1),
+              new Date(year, adjustedMonth + 1, 0)
+            )
+          },
+          relations: ['liquidationContracts']
+        });
+
+        const comisionMes = liquidations.reduce((sum, liq) => {
+          const total = liq.liquidationContracts?.reduce((t, lc) => t + (Number(lc.overrideCommission) || 0), 0) || 0;
+          return sum + total;
+        }, 0);
+
         const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
         historico.push({
           mes: monthNames[adjustedMonth],
           year,
-          contratos: Math.round(contratos / agentes.length) // Promedio por agente
+          contratos: Math.round(contratos / agentes.length), // Promedio por agente
+          comision: comisionMes
+        });
+
+        historicoComisiones.push({
+          mes: monthNames[adjustedMonth],
+          comision: comisionMes,
+          contratos: contratos,
+          ventasObjetivo: `${contratos}/${agentes.length * 140}`
         });
       }
+
+      // Calcular media mensual (comisión diaria promedio)
+      const comisionMesActual = historico[historico.length - 1]?.comision || 0;
+      const diasMes = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const mediaDiaria = comisionMesActual / diasMes;
+
+      // Calcular % conversión
+      const contratosUltimoMes = historico[historico.length - 1]?.contratos || 0;
+      const porcentajeConversion = Math.round((contratosUltimoMes / (agentes.length * 140)) * 100);
+
+      // Obtener tiempos de activación agregados
+      const tiemposActivacion = await this.getTiemposActivacionPorCompania();
 
       return {
         cumplimientoObjetivo: {
@@ -1521,7 +1583,37 @@ export class DashboardService {
           objetivo: totalObjetivo
         },
         historicoMensual: historico,
-        totalAgentes: agentes.length
+        historicoComisiones: historicoComisiones,
+        mediaMensual: {
+          value: Math.round(mediaDiaria),
+          data: historico.map(h => ({
+            month: h.mes,
+            value: Math.round(h.comision / diasMes)
+          }))
+        },
+        conversion: {
+          percentage: porcentajeConversion,
+          data: historico.map(h => ({
+            month: h.mes,
+            value: Math.round((h.contratos / (agentes.length * 140)) * 100)
+          }))
+        },
+        comisionMedia: {
+          value: Math.round(comisionMesActual),
+          data: historico.map(h => ({
+            month: h.mes,
+            value: Math.round(h.comision)
+          }))
+        },
+        totalAgentes: agentes.length,
+        contratosAgregados: {
+          confirmados: 0,
+          activos: contratosActivos,
+          porActivarse: contratosPorActivar,
+          retiros: 0,
+          cancelados: 0
+        },
+        tiemposActivacion: tiemposActivacion
       };
     } catch (error) {
       console.error('Error in getMetricasAgregadasAgentes:', error);
