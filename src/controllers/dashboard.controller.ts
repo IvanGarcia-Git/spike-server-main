@@ -10,7 +10,7 @@ export class DashboardController {
 
   async getGeneralStats(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
       const stats = await this.dashboardService.getGeneralStats(userId);
       res.json(stats);
     } catch (error) {
@@ -64,7 +64,7 @@ export class DashboardController {
 
   async getFullDashboard(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
       const dashboard = await this.dashboardService.getFullDashboard(userId);
       res.json(dashboard);
     } catch (error) {
@@ -179,7 +179,7 @@ export class DashboardController {
 
   async getObjetivosVenta(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
       const objetivos = await this.dashboardService.getObjetivosVenta(userId);
       res.json(objetivos);
     } catch (error) {
@@ -224,7 +224,7 @@ export class DashboardController {
 
   async getTiemposActivacionPorCompania(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
       const tiempos = await this.dashboardService.getTiemposActivacionPorCompania(userId);
       res.json(tiempos);
     } catch (error) {
@@ -339,6 +339,101 @@ export class DashboardController {
     } catch (error) {
       console.error('Error getting ventas por turno:', error);
       res.status(500).json({ message: 'Error obteniendo ventas por turno' });
+    }
+  }
+
+  // ===== NUEVOS ENDPOINTS DE LISTADO POR ROL =====
+
+  async getAgentesLista(req: Request, res: Response) {
+    try {
+      const { limit } = req.query;
+      const agentes = await this.dashboardService.getAgentes(limit ? Number(limit) : undefined);
+      res.json(agentes);
+    } catch (error) {
+      console.error('Error getting agentes lista:', error);
+      res.status(500).json({ message: 'Error obteniendo lista de agentes' });
+    }
+  }
+
+  async getColaboradoresLista(req: Request, res: Response) {
+    try {
+      const { limit } = req.query;
+      const colaboradores = await this.dashboardService.getColaboradores(limit ? Number(limit) : undefined);
+      res.json(colaboradores);
+    } catch (error) {
+      console.error('Error getting colaboradores lista:', error);
+      res.status(500).json({ message: 'Error obteniendo lista de colaboradores' });
+    }
+  }
+
+  async getPosiblesRenovacionesPorAgente(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const renovaciones = await this.dashboardService.getPosiblesRenovacionesPorAgente(Number(userId));
+      res.json(renovaciones);
+    } catch (error) {
+      console.error('Error getting posibles renovaciones:', error);
+      res.status(500).json({ message: 'Error obteniendo posibles renovaciones' });
+    }
+  }
+
+  async getContratosGeneralesPorCompania(req: Request, res: Response) {
+    try {
+      const contratos = await this.dashboardService.getContratosGeneralesPorCompania();
+      res.json(contratos);
+    } catch (error) {
+      console.error('Error getting contratos generales por compañía:', error);
+      res.status(500).json({ message: 'Error obteniendo contratos por compañía' });
+    }
+  }
+
+  async getDistribucionClientesGeneralAgentes(req: Request, res: Response) {
+    try {
+      const distribucion = await this.dashboardService.getDistribucionClientesGeneralAgentes();
+      res.json(distribucion);
+    } catch (error) {
+      console.error('Error getting distribucion clientes general agentes:', error);
+      res.status(500).json({ message: 'Error obteniendo distribución de clientes de agentes' });
+    }
+  }
+
+  async getPosiblesRenovacionesGeneralAgentes(req: Request, res: Response) {
+    try {
+      const renovaciones = await this.dashboardService.getPosiblesRenovacionesGeneralAgentes();
+      res.json(renovaciones);
+    } catch (error) {
+      console.error('Error getting posibles renovaciones general agentes:', error);
+      res.status(500).json({ message: 'Error obteniendo posibles renovaciones de agentes' });
+    }
+  }
+
+  async getDistribucionClientesGeneralColaboradores(req: Request, res: Response) {
+    try {
+      const distribucion = await this.dashboardService.getDistribucionClientesGeneralColaboradores();
+      res.json(distribucion);
+    } catch (error) {
+      console.error('Error getting distribucion clientes general colaboradores:', error);
+      res.status(500).json({ message: 'Error obteniendo distribución de clientes de colaboradores' });
+    }
+  }
+
+  async getMetricasAgregadasAgentes(req: Request, res: Response) {
+    try {
+      const metricas = await this.dashboardService.getMetricasAgregadasAgentes();
+      res.json(metricas);
+    } catch (error) {
+      console.error('Error getting metricas agregadas agentes:', error);
+      res.status(500).json({ message: 'Error obteniendo métricas agregadas de agentes' });
+    }
+  }
+
+  async getMetricasAgregadasColaboradores(req: Request, res: Response) {
+    try {
+      const metricas = await this.dashboardService.getMetricasAgregadasColaboradores();
+      res.json(metricas);
+    } catch (error) {
+      console.error('Error getting metricas agregadas colaboradores:', error);
+      res.status(500).json({ message: 'Error obteniendo métricas agregadas de colaboradores' });
     }
   }
 }

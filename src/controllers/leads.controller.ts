@@ -146,7 +146,7 @@ export module LeadsController {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.SuperAdmin) {
+      if (groupId != Roles.Admin) {
         res.status(403).send("unauthorized");
         return;
       }
@@ -167,7 +167,7 @@ export module LeadsController {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.SuperAdmin) {
+      if (groupId != Roles.Admin) {
         res.status(403).send("unauthorized");
         return;
       }

@@ -25,6 +25,7 @@ import { File } from "./file.entity";
 import { Folder } from "./folder.entity";
 import { Absence } from "./absence.entity";
 import { UserShift } from "../enums/user-shift.enum";
+import { Roles } from "../enums/roles.enum";
 import { CommissionAssignment } from "./commission-assignment.entity";
 import { Liquidation } from "./liquidation.entity";
 import { UserDocument } from "./user-document.entity";
@@ -100,6 +101,13 @@ export class User {
 
   @Column("boolean")
   isManager: boolean;
+
+  @Column({
+    type: "varchar",
+    length: 50,
+    default: Roles.Colaborador
+  })
+  role: Roles;
 
   @Column("varchar", {
     length: 255,

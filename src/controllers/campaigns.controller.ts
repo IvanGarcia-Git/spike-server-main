@@ -34,7 +34,7 @@ export module CampaignsController {
     const { uuid: campaignUuid } = req.params;
 
     try {
-      if (groupId != Roles.SuperAdmin) {
+      if (groupId != Roles.Admin) {
         res.status(403).send("unauthorized");
         return;
       }
@@ -71,7 +71,7 @@ export module CampaignsController {
     const leadSkip = (leadPageNumber - 1) * leadLimitNumber;
 
     try {
-      if (groupId != Roles.SuperAdmin) {
+      if (groupId != Roles.Admin) {
         res.status(403).send("unauthorized");
         return;
       }

@@ -41,6 +41,8 @@ import commissionAssignmentsRouter from "./routes/commission-assignments.router"
 import liquidationsRouter from "./routes/liquidations.router";
 import liquidationContractsRouter from "./routes/liquidation-contracts.router";
 import dashboardRouter from "./routes/dashboard.routes";
+import agentesRouter from "./routes/agentes.routes";
+import colaboradoresRouter from "./routes/colaboradores.routes";
 import noteRouter from "./routes/note.route";
 import noteFolderRouter from "./routes/note-folder.route";
 import { createServer } from "http";
@@ -103,6 +105,8 @@ app.use("/users-share-leads", userShareLeadsRoutes);
 app.use("/liquidations", liquidationsRouter);
 app.use("/liquidation-contracts", liquidationContractsRouter);
 app.use("/dashboard", dashboardRouter);
+app.use("/agentes", agentesRouter);
+app.use("/colaboradores", colaboradoresRouter);
 app.use("/notes", noteRouter);
 app.use("/note-folders", noteFolderRouter);
 

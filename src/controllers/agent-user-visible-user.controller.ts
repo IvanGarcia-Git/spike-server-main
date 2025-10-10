@@ -8,7 +8,7 @@ export module AgentUserVisibleUserController {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.SuperAdmin) {
+      if (groupId != Roles.Admin) {
         res.status(403).send("unauthorized");
         return;
       }

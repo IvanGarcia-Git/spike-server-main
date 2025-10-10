@@ -6,7 +6,7 @@ export module RatesController {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.SuperAdmin) {
+      if (groupId != Roles.Admin) {
         res.status(403).send("unauthorized");
         return;
       }
@@ -54,7 +54,7 @@ export module RatesController {
   export const update = async (req, res, next) => {
     const { groupId } = req.user;
 
-    if (groupId != Roles.SuperAdmin) {
+    if (groupId != Roles.Admin) {
       res.status(403).send("unauthorized");
       return;
     }
@@ -73,7 +73,7 @@ export module RatesController {
   export const updateChannelForRates = async (req, res, next) => {
     const { groupId } = req.user;
 
-    if (groupId != Roles.SuperAdmin) {
+    if (groupId != Roles.Admin) {
       res.status(403).send("unauthorized");
       return;
     }
@@ -94,7 +94,7 @@ export module RatesController {
   export const deleteRate = async (req, res, next) => {
     const { groupId } = req.user;
 
-    if (groupId != Roles.SuperAdmin) {
+    if (groupId != Roles.Admin) {
       res.status(403).send("unauthorized");
       return;
     }

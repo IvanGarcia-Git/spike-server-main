@@ -117,7 +117,7 @@ export module ContractsController {
 
       const contract = await ContractsService.getOne({ uuid });
 
-      if (!contract.isDraft && groupId != Roles.SuperAdmin) {
+      if (!contract.isDraft && groupId != Roles.Admin) {
         res.status(403).send("Only SuperAdmin can delete a contract that is not in draft mode.");
         return;
       }

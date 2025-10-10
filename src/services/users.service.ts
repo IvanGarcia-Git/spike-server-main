@@ -54,6 +54,7 @@ export module UsersService {
 
       newUser.parentGroupId = parentGroupId;
       newUser.isManager = isManager;
+      newUser.role = userDto.role || Roles.Colaborador; // Asignar rol del DTO o por defecto Colaborador
 
       if (userImage) {
         newUser.imageUri = await AwsHelper.uploadImageToS3("user", userImage);
@@ -86,6 +87,7 @@ export module UsersService {
           userEmail: user.email,
           userUuid: user.uuid,
           isManager: user.isManager,
+          role: user.role,
           groupId: user.groupId,
           parentGroupId: user?.parentGroupId,
         },
@@ -408,13 +410,13 @@ export module UsersService {
     creatorGroupId: number,
     creatorParentGroupId: number
   ): { groupId: number; parentGroupId: number; isManager: boolean } => {
-    if (role == "admin") {
+    if (role == Roles.Admin) {
       return {
         groupId: creatorGroupId,
         parentGroupId: creatorParentGroupId,
         isManager: true,
       };
-    } else if (role == "supervisor") {
+    } else if (role == Roles.Agente) {
       return { groupId: null, parentGroupId: creatorGroupId, isManager: true };
     } else {
       return { groupId: null, parentGroupId: creatorGroupId, isManager: false };

@@ -34,7 +34,22 @@ router.get('/colaborador/:userId/clientes-por-tipo', (req, res) => dashboardCont
 router.get('/colaborador/:userId/historial-comisiones', (req, res) => dashboardController.getHistorialComisionesPorUsuario(req, res));
 router.get('/colaborador/:userId/cumplimiento-objetivo', (req, res) => dashboardController.getCumplimientoObjetivo(req, res));
 router.get('/colaborador/:userId/historico-mensual', (req, res) => dashboardController.getHistoricoMensual(req, res));
+router.get('/colaborador/:userId/posibles-renovaciones', (req, res) => dashboardController.getPosiblesRenovacionesPorAgente(req, res));
 router.get('/tiempos-activacion', (req, res) => dashboardController.getTiemposActivacionPorCompania(req, res));
+
+// Rutas de estadísticas generales de agentes (DEBEN IR ANTES de /agentes genérico)
+router.get('/agentes/contratos-por-compania', (req, res) => dashboardController.getContratosGeneralesPorCompania(req, res));
+router.get('/agentes/distribucion-clientes', (req, res) => dashboardController.getDistribucionClientesGeneralAgentes(req, res));
+router.get('/agentes/posibles-renovaciones', (req, res) => dashboardController.getPosiblesRenovacionesGeneralAgentes(req, res));
+router.get('/agentes/metricas-agregadas', (req, res) => dashboardController.getMetricasAgregadasAgentes(req, res));
+
+// Rutas de listado de usuarios por rol
+router.get('/agentes', (req, res) => dashboardController.getAgentesLista(req, res));
+router.get('/colaboradores', (req, res) => dashboardController.getColaboradoresLista(req, res));
+
+// Rutas de estadísticas generales de colaboradores
+router.get('/colaboradores/distribucion-clientes', (req, res) => dashboardController.getDistribucionClientesGeneralColaboradores(req, res));
+router.get('/colaboradores/metricas-agregadas', (req, res) => dashboardController.getMetricasAgregadasColaboradores(req, res));
 
 // ===== NUEVAS RUTAS CLIENTES/CONTRATOS =====
 router.get('/clientes/distribucion', (req, res) => dashboardController.getDistribucionClientes(req, res));

@@ -55,7 +55,7 @@ export module GroupsController {
     const { groupUuid } = req.params;
 
     try {
-      if (groupId != Roles.SuperAdmin) {
+      if (groupId != Roles.Admin) {
         res.status(403).send("unauthorized");
         return;
       }
@@ -83,7 +83,7 @@ export module GroupsController {
     const { groupId } = req.user;
 
     try {
-      if (groupId != Roles.SuperAdmin) {
+      if (groupId != Roles.Admin) {
         res.status(403).send("unauthorized");
         return;
       }
