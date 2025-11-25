@@ -51,11 +51,12 @@ export module GroupsController {
   };
 
   export const getOne = async (req, res, next) => {
-    const { groupId } = req.user;
+    const { role, groupId } = req.user;
     const { groupUuid } = req.params;
 
     try {
-      if (groupId != Roles.Admin) {
+      // Allow access if user is admin by role OR if groupId is 1 (legacy admin check)
+      if (role !== Roles.Admin && groupId !== 1) {
         res.status(403).send("unauthorized");
         return;
       }
@@ -80,10 +81,11 @@ export module GroupsController {
   };
 
   export const getAll = async (req, res, next) => {
-    const { groupId } = req.user;
+    const { role, groupId } = req.user;
 
     try {
-      if (groupId != Roles.Admin) {
+      // Allow access if user is admin by role OR if groupId is 1 (legacy admin check)
+      if (role !== Roles.Admin && groupId !== 1) {
         res.status(403).send("unauthorized");
         return;
       }
