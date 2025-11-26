@@ -85,10 +85,10 @@ export class DashboardService {
 
   async getTopAgents(limit: number = 5) {
     try {
-      // Obtener tanto Agentes como Colaboradores
+      // Obtener solo Agentes
       const agents = await this.userRepository.find({
         where: {
-          role: In([Roles.Agente, Roles.Colaborador])
+          role: Roles.Agente
         },
         relations: ['contracts']
       });
@@ -159,6 +159,86 @@ export class DashboardService {
       return agentsWithStats.slice(0, limit);
     } catch (error) {
       console.error('Error in getTopAgents:', error);
+      throw error;
+    }
+  }
+
+  async getTopColaboradores(limit: number = 5) {
+    try {
+      // Obtener solo Colaboradores
+      const colaboradores = await this.userRepository.find({
+        where: {
+          role: Roles.Colaborador
+        },
+        relations: ['contracts']
+      });
+
+      const colaboradoresWithStats = await Promise.all(colaboradores.map(async (colaborador) => {
+        const contractCount = await this.contractRepository.count({
+          where: { user: { id: colaborador.id } }
+        });
+
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+
+        const monthlyContracts = await this.contractRepository.count({
+          where: {
+            user: { id: colaborador.id },
+            createdAt: Between(
+              new Date(currentYear, currentMonth, 1),
+              new Date(currentYear, currentMonth + 1, 0)
+            )
+          }
+        });
+
+        const objetivo = 140; // Objetivo por defecto
+        const porcentaje = Math.round((monthlyContracts / objetivo) * 100);
+
+        // Calcular comisiones del mes
+        const liquidations = await this.liquidationRepository.find({
+          where: {
+            user: { id: colaborador.id },
+            createdAt: Between(
+              new Date(currentYear, currentMonth, 1),
+              new Date(currentYear, currentMonth + 1, 0)
+            )
+          },
+          relations: ['liquidationContracts']
+        });
+
+        const comisiones = liquidations.reduce((sum, liq) => {
+          const liquidationTotal = liq.liquidationContracts?.reduce((total, lc) => {
+            return total + (Number(lc.overrideCommission) || 0);
+          }, 0) || 0;
+          return sum + liquidationTotal;
+        }, 0);
+
+        const fullName = `${colaborador.name} ${colaborador.firstSurname} ${colaborador.secondSurname}`.trim();
+
+        return {
+          id: colaborador.id,
+          uuid: colaborador.uuid,
+          name: fullName || colaborador.username,
+          email: colaborador.email,
+          role: colaborador.role,
+          avatar: colaborador.imageUri,
+          shift: colaborador.shift,
+          ventas: monthlyContracts,
+          objetivo: objetivo,
+          porcentaje: porcentaje,
+          comisiones: comisiones,
+          totalContratos: contractCount,
+          trend: monthlyContracts > 10 ? 'up' : 'down',
+          trendValue: Math.abs(Math.floor(Math.random() * 30) + 1)
+        };
+      }));
+
+      // Ordenar por número de contratos totales
+      colaboradoresWithStats.sort((a, b) => b.totalContratos - a.totalContratos);
+
+      return colaboradoresWithStats.slice(0, limit);
+    } catch (error) {
+      console.error('Error in getTopColaboradores:', error);
       throw error;
     }
   }
@@ -527,6 +607,7 @@ export class DashboardService {
       const [
         stats,
         topAgentes,
+        topColaboradores,
         estadosLeads,
         ventasPorMes,
         proximasLiquidaciones,
@@ -539,6 +620,7 @@ export class DashboardService {
       ] = await Promise.all([
         this.getGeneralStats(userId),
         this.getTopAgents(5),
+        this.getTopColaboradores(5),
         this.getLeadsByState(),
         this.getMonthlySales(new Date().getFullYear()),
         this.getUpcomingLiquidations(5),
@@ -553,6 +635,7 @@ export class DashboardService {
       return {
         stats,
         topAgentes,
+        topColaboradores,
         estadosLeads,
         ventasPorMes,
         proximasLiquidaciones,
