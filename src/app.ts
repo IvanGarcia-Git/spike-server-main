@@ -65,6 +65,11 @@ app.use(
   })
 );
 
+// Health check endpoint for Docker/Dokploy
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 //Webhooks routing
 app.use("/webhook/tiktok", tiktokWebhook);
 app.use("/webhook/landing", landingWebhook);

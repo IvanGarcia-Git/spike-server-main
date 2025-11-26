@@ -2,8 +2,11 @@ node_modules
 dist
 .serverless
 .env
+.env.local
 .DS_Store
 uploads/
+*.db
+data/
 
 # YoYo AI version control directory
 .yoyo/
