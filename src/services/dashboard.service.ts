@@ -167,9 +167,10 @@ export class DashboardService {
     try {
       const states = await this.leadRepository
         .createQueryBuilder('lead')
-        .select('lead.state', 'state')
+        .leftJoin('lead.leadState', 'leadState')
+        .select('leadState.name', 'state')
         .addSelect('COUNT(lead.id)', 'count')
-        .groupBy('lead.state')
+        .groupBy('leadState.name')
         .getRawMany();
 
       const totalLeads = states.reduce((sum, state) => sum + Number(state.count), 0);
@@ -306,9 +307,10 @@ export class DashboardService {
     try {
       const states = await this.contractRepository
         .createQueryBuilder('contract')
-        .select('contract.state', 'state')
+        .leftJoin('contract.contractState', 'contractState')
+        .select('contractState.name', 'state')
         .addSelect('COUNT(contract.id)', 'count')
-        .groupBy('contract.state')
+        .groupBy('contractState.name')
         .getRawMany();
 
       const totalContracts = states.reduce((sum, state) => sum + Number(state.count), 0);
