@@ -46,6 +46,10 @@ import colaboradoresRouter from "./routes/colaboradores.routes";
 import noteRouter from "./routes/note.route";
 import noteFolderRouter from "./routes/note-folder.route";
 import { createServer } from "http";
+import { User } from "./models/user.entity";
+import { Roles } from "./enums/roles.enum";
+import * as bcrypt from "bcryptjs";
+import { v4 as uuidv4 } from "uuid";
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -118,10 +122,54 @@ app.use("/note-folders", noteFolderRouter);
 //Custom middlewares
 app.use(errorMiddleware);
 
+// Función para crear usuario admin si no existe
+async function seedAdminUser() {
+  try {
+    const userRepository = dataSource.getRepository(User);
+
+    // Verificar si ya existe un usuario admin
+    const existingAdmin = await userRepository.findOne({
+      where: { username: process.env.ADMIN_USERNAME || "admin" }
+    });
+
+    if (existingAdmin) {
+      console.log("✅ Usuario admin ya existe");
+      return;
+    }
+
+    // Crear usuario admin
+    const hashedPassword = bcrypt.hashSync(process.env.ADMIN_PASSWORD || "123456", 10);
+
+    const adminUser = userRepository.create({
+      uuid: uuidv4(),
+      name: "Admin",
+      firstSurname: "Usuario",
+      secondSurname: "Sistema",
+      username: process.env.ADMIN_USERNAME || "admin",
+      email: process.env.ADMIN_EMAIL || "admin@admin.com",
+      password: hashedPassword,
+      isManager: true,
+      role: Roles.Admin,
+      groupId: 1,
+      parentGroupId: null,
+      leadPriorities: []
+    });
+
+    await userRepository.save(adminUser);
+    console.log("🎉 Usuario admin creado exitosamente");
+    console.log(`   Username: ${adminUser.username}`);
+    console.log(`   Email: ${adminUser.email}`);
+  } catch (error) {
+    console.error("❌ Error creando usuario admin:", error);
+  }
+}
+
 dataSource
   .initialize()
-  .then(() => {
+  .then(async () => {
     console.log("Data Source initialized");
+    // Crear usuario admin si no existe
+    await seedAdminUser();
   })
   .catch((err) => {
     console.error("Error during Data Source initialization:", err);
