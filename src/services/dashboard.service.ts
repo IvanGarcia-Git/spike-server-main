@@ -284,8 +284,8 @@ export class DashboardService {
         });
 
         return {
-          month,
-          value: count
+          mes: month,
+          ventas: count
         };
       }));
 
