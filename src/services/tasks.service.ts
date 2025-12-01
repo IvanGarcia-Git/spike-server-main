@@ -10,7 +10,7 @@ import {
   MoreThanOrEqual,
 } from "typeorm";
 import { TaskSearchDTO } from "../dto/task-search.dto";
-import { NotificationContents } from "../enums/notfication-contents.enum";
+import { NotificationContents } from "../enums/notification-contents.enum";
 import { NotificationsService } from "./notifications.service";
 import { EventType } from "../models/notification.entity";
 import { NotificationPreference } from "../models/user.entity";

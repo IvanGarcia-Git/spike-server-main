@@ -2,7 +2,7 @@ import { AwsHelper } from "../helpers/aws.helper";
 import { dataSource } from "../../app-data-source";
 import { Reminder } from "../models/reminder.entity";
 import { Between, FindOptionsRelations, FindOptionsWhere } from "typeorm";
-import { NotificationContents } from "../enums/notfication-contents.enum";
+import { NotificationContents } from "../enums/notification-contents.enum";
 import { NotificationsService } from "./notifications.service";
 import { EventType } from "../models/notification.entity";
 import { NotificationPreference } from "../models/user.entity";

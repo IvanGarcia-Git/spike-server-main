@@ -42,13 +42,6 @@ export module ChannelsController {
 
   export const getAll = async (req, res, next) => {
     try {
-      // const { isManager } = req.user;
-
-      // if (!isManager) {
-      //   res.status(403).send("unauthorized");
-      //   return;
-      // }
-
       const channels = await ChannelsService.getAll();
 
       res.json(channels);

@@ -298,4 +298,30 @@ export module AwsHelper {
 
     return s3.getSignedUrl("getObject", params);
   };
+
+  /**
+   * Process an array of items and convert their URI fields to presigned URLs
+   * @param items Array of items with potential URI fields
+   * @param uriField The field name containing the URI (default: 'billUri')
+   * @param excludePatterns URL patterns to exclude from conversion
+   */
+  export const processPresignedUrls = <T extends Record<string, any>>(
+    items: T[],
+    uriField: keyof T = 'billUri' as keyof T,
+    excludePatterns: string[] = ['https://bajatufactura', 'https://crm']
+  ): void => {
+    for (const item of items) {
+      const uri = item[uriField];
+      if (uri && typeof uri === 'string') {
+        const shouldExclude = excludePatterns.some(pattern => uri.startsWith(pattern));
+        if (!shouldExclude) {
+          try {
+            (item as any)[uriField] = getPresignedUrl(uri);
+          } catch (error) {
+            console.error(`Error generating presigned URL for item ID: ${(item as any).id}`, error);
+          }
+        }
+      }
+    }
+  };
 }

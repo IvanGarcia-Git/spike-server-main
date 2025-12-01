@@ -12,7 +12,7 @@ import { RatesService } from "./rates.service";
 import { UserContractPreferencesService } from "./user-contract-preferences.service";
 import { NotificationsService } from "./notifications.service";
 import { EventType } from "../models/notification.entity";
-import { NotificationContents } from "../enums/notfication-contents.enum";
+import { NotificationContents } from "../enums/notification-contents.enum";
 import { NotificationPreference } from "../models/user.entity";
 import { TelephonyData } from "../models/telephony-data.entity";
 import { TelephonyDataService } from "./telephony-data.service";

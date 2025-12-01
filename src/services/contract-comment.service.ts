@@ -4,7 +4,7 @@ import { ContractComment } from "../models/contract-comment.entity";
 import { ContractsService } from "./contracts.service";
 import { NotificationsService } from "./notifications.service";
 import { EventType } from "../models/notification.entity";
-import { NotificationContents } from "../enums/notfication-contents.enum";
+import { NotificationContents } from "../enums/notification-contents.enum";
 import { NotificationPreference } from "../models/user.entity";
 
 export module ContractCommentService {

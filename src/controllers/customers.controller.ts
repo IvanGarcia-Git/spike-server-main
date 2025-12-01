@@ -65,15 +65,6 @@ export module CustomersController {
       const { uuid } = req.params;
       const customerData = req.body;
 
-      // const contract = await CustomersService.getOne({ uuid });
-
-      // if (!contract.isDraft && !isManager) {
-      //   res
-      //     .status(403)
-      //     .send("Only Admin can update a contract that is not in draft mode.");
-      //   return;
-      // }
-
       const updatedCustomer = await CustomersService.update(uuid, customerData);
       res.json(updatedCustomer);
     } catch (error) {

@@ -1,5 +1,4 @@
 require("dotenv").config();
-//import bodyParser from "body-parser";
 import campaignsRouter from "./routes/campaigns.router";
 import channelsRouter from "./routes/channels.router";
 import comparativasRouter from "./routes/comparativa.route";
@@ -41,8 +40,7 @@ import commissionAssignmentsRouter from "./routes/commission-assignments.router"
 import liquidationsRouter from "./routes/liquidations.router";
 import liquidationContractsRouter from "./routes/liquidation-contracts.router";
 import dashboardRouter from "./routes/dashboard.routes";
-import agentesRouter from "./routes/agentes.routes";
-import colaboradoresRouter from "./routes/colaboradores.routes";
+import userProfilesRouter from "./routes/user-profiles.routes";
 import noteRouter from "./routes/note.route";
 import noteFolderRouter from "./routes/note-folder.route";
 import { createServer } from "http";
@@ -114,8 +112,7 @@ app.use("/users-share-leads", userShareLeadsRoutes);
 app.use("/liquidations", liquidationsRouter);
 app.use("/liquidation-contracts", liquidationContractsRouter);
 app.use("/dashboard", dashboardRouter);
-app.use("/agentes", agentesRouter);
-app.use("/colaboradores", colaboradoresRouter);
+app.use("/user-profiles", userProfilesRouter);
 app.use("/notes", noteRouter);
 app.use("/note-folders", noteFolderRouter);
 

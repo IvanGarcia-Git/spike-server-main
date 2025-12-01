@@ -86,8 +86,6 @@ export module FilesService {
 
   export const remove = async (where: FindOptionsWhere<File>): Promise<boolean> => {
     try {
-      console.log(where);
-
       const fileRepository = dataSource.getRepository(File);
 
       const filesToDelete = await fileRepository.find({ where });

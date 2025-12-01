@@ -163,7 +163,7 @@ export module LeadsService {
 
         await CallBellHelper.assignUserToContact(leadFound.phoneNumber, userDetail.email);
       } catch (error) {
-        console.log(error);
+        console.error("Error assigning user to CallBell contact:", error);
       }
 
       await userRepository.update(userId, { leadId: leadFound.id });
@@ -361,7 +361,7 @@ export module LeadsService {
           try {
             await CallBellHelper.assignUserToContact(leadToAssign.phoneNumber, user.email);
           } catch (error) {
-            console.log(error);
+            console.error("Error assigning user to CallBell contact:", error);
           }
 
           return leadToAssign;
@@ -389,7 +389,7 @@ export module LeadsService {
             try {
               await CallBellHelper.assignUserToContact(leadInQueue.lead.phoneNumber, user.email);
             } catch (error) {
-              console.log(error);
+              console.error("Error assigning user to CallBell contact:", error);
             }
 
             return leadInQueue.lead;
@@ -447,7 +447,7 @@ export module LeadsService {
         try {
           await CallBellHelper.assignUserToContact(leadToAssign.phoneNumber, user.email);
         } catch (error) {
-          console.log(error);
+          console.error("Error assigning user to CallBell contact:", error);
         }
 
         return leadToAssign;

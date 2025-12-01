@@ -4,7 +4,7 @@ import { Between, FindOptionsRelations, FindOptionsWhere } from "typeorm";
 import { AwsHelper } from "../helpers/aws.helper";
 import { NotificationsService } from "./notifications.service";
 import { EventType } from "../models/notification.entity";
-import { NotificationContents } from "../enums/notfication-contents.enum";
+import { NotificationContents } from "../enums/notification-contents.enum";
 import { NotificationPreference } from "../models/user.entity";
 
 export module LeadCallsService {

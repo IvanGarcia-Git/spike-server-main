@@ -10,7 +10,7 @@ import {
 } from "typeorm";
 import { NotificationsService } from "./notifications.service";
 import { EventType } from "../models/notification.entity";
-import { NotificationContents } from "../enums/notfication-contents.enum";
+import { NotificationContents } from "../enums/notification-contents.enum";
 import { NotificationPreference, User } from "../models/user.entity";
 
 export module AbsencesService {

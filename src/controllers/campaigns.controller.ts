@@ -44,15 +44,7 @@ export module CampaignsController {
         leads: { user: true },
       });
 
-      for (const lead of campaign.leads) {
-        if (lead?.billUri && !lead.billUri.startsWith("https://bajatufactura")) {
-          try {
-            lead.billUri = AwsHelper.getPresignedUrl(lead.billUri);
-          } catch (error) {
-            console.error(`Error generating presigned URL for lead ID: ${lead.id}`, error);
-          }
-        }
-      }
+      AwsHelper.processPresignedUrls(campaign.leads);
 
       res.json(campaign);
     } catch (error) {
@@ -89,15 +81,7 @@ export module CampaignsController {
           leadLimitNumber
         );
 
-        for (const lead of leads) {
-          if (lead?.billUri && !lead.billUri.startsWith("https://crm")) {
-            try {
-              lead.billUri = AwsHelper.getPresignedUrl(lead.billUri);
-            } catch (error) {
-              console.error(`Error generating presigned URL for lead ID: ${lead.id}`, error);
-            }
-          }
-        }
+        AwsHelper.processPresignedUrls(leads);
 
         const campaignWithLeads = {
           ...campaign,
