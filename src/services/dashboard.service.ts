@@ -100,7 +100,7 @@ export class DashboardService {
 
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
-        
+
         const monthlyContracts = await this.contractRepository.count({
           where: {
             user: { id: agent.id },
@@ -111,9 +111,28 @@ export class DashboardService {
           }
         });
 
+        // Calcular contratos del mes anterior para el crecimiento
+        const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+        const previousMonthContracts = await this.contractRepository.count({
+          where: {
+            user: { id: agent.id },
+            createdAt: Between(
+              new Date(previousYear, previousMonth, 1),
+              new Date(previousYear, previousMonth + 1, 0)
+            )
+          }
+        });
+
+        // Calcular crecimiento como porcentaje
+        const crecimiento = previousMonthContracts > 0
+          ? Math.round(((monthlyContracts - previousMonthContracts) / previousMonthContracts) * 100)
+          : (monthlyContracts > 0 ? 100 : 0);
+
         const objetivo = 140; // Objetivo por defecto
         const porcentaje = Math.round((monthlyContracts / objetivo) * 100);
-        
+
         // Calcular comisiones del mes
         const liquidations = await this.liquidationRepository.find({
           where: {
@@ -125,7 +144,7 @@ export class DashboardService {
           },
           relations: ['liquidationContracts']
         });
-        
+
         const comisiones = liquidations.reduce((sum, liq) => {
           const liquidationTotal = liq.liquidationContracts?.reduce((total, lc) => {
             return total + (Number(lc.overrideCommission) || 0);
@@ -134,6 +153,14 @@ export class DashboardService {
         }, 0);
 
         const fullName = `${agent.name} ${agent.firstSurname} ${agent.secondSurname}`.trim();
+
+        // Determinar color basado en porcentaje de objetivo
+        let color = 'red';
+        if (porcentaje >= 75) {
+          color = 'green';
+        } else if (porcentaje >= 50) {
+          color = 'yellow';
+        }
 
         return {
           id: agent.id,
@@ -147,14 +174,16 @@ export class DashboardService {
           objetivo: objetivo,
           porcentaje: porcentaje,
           comisiones: comisiones,
+          crecimiento: crecimiento,
+          color: color,
           totalContratos: contractCount,
-          trend: monthlyContracts > 10 ? 'up' : 'down',
-          trendValue: Math.abs(Math.floor(Math.random() * 30) + 1)
+          trend: crecimiento >= 0 ? 'up' : 'down',
+          trendValue: Math.abs(crecimiento)
         };
       }));
 
-      // Ordenar por número de contratos totales
-      agentsWithStats.sort((a, b) => b.totalContratos - a.totalContratos);
+      // Ordenar por número de contratos del mes (ventas)
+      agentsWithStats.sort((a, b) => b.ventas - a.ventas);
 
       return agentsWithStats.slice(0, limit);
     } catch (error) {
@@ -191,6 +220,25 @@ export class DashboardService {
           }
         });
 
+        // Calcular contratos del mes anterior para el crecimiento
+        const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+        const previousMonthContracts = await this.contractRepository.count({
+          where: {
+            user: { id: colaborador.id },
+            createdAt: Between(
+              new Date(previousYear, previousMonth, 1),
+              new Date(previousYear, previousMonth + 1, 0)
+            )
+          }
+        });
+
+        // Calcular crecimiento como porcentaje
+        const crecimiento = previousMonthContracts > 0
+          ? Math.round(((monthlyContracts - previousMonthContracts) / previousMonthContracts) * 100)
+          : (monthlyContracts > 0 ? 100 : 0);
+
         const objetivo = 140; // Objetivo por defecto
         const porcentaje = Math.round((monthlyContracts / objetivo) * 100);
 
@@ -215,6 +263,14 @@ export class DashboardService {
 
         const fullName = `${colaborador.name} ${colaborador.firstSurname} ${colaborador.secondSurname}`.trim();
 
+        // Determinar color basado en porcentaje de objetivo
+        let color = 'red';
+        if (porcentaje >= 75) {
+          color = 'green';
+        } else if (porcentaje >= 50) {
+          color = 'yellow';
+        }
+
         return {
           id: colaborador.id,
           uuid: colaborador.uuid,
@@ -227,14 +283,16 @@ export class DashboardService {
           objetivo: objetivo,
           porcentaje: porcentaje,
           comisiones: comisiones,
+          crecimiento: crecimiento,
+          color: color,
           totalContratos: contractCount,
-          trend: monthlyContracts > 10 ? 'up' : 'down',
-          trendValue: Math.abs(Math.floor(Math.random() * 30) + 1)
+          trend: crecimiento >= 0 ? 'up' : 'down',
+          trendValue: Math.abs(crecimiento)
         };
       }));
 
-      // Ordenar por número de contratos totales
-      colaboradoresWithStats.sort((a, b) => b.totalContratos - a.totalContratos);
+      // Ordenar por número de contratos del mes (ventas)
+      colaboradoresWithStats.sort((a, b) => b.ventas - a.ventas);
 
       return colaboradoresWithStats.slice(0, limit);
     } catch (error) {
