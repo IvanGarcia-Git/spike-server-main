@@ -37,13 +37,13 @@ export class Comparativa {
   clientName: string;
 
   @Column({
-    type: "varchar",
+    type: "enum",
     enum: ComparisonType,
   })
   comparisonType: ComparisonType;
 
   @Column({
-    type: "varchar",
+    type: "enum",
     enum: CustomerType,
   })
   customerType: CustomerType;
