@@ -1,12 +1,13 @@
 import { RatesService } from "../services/rates.service";
-import { Roles } from "../enums/roles.enum";
 
 export module RatesController {
+  const SUPER_ADMIN_GROUP_ID = 1;
+
   export const create = async (req, res, next) => {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }
@@ -54,7 +55,7 @@ export module RatesController {
   export const update = async (req, res, next) => {
     const { groupId } = req.user;
 
-    if (groupId != Roles.Admin) {
+    if (groupId !== SUPER_ADMIN_GROUP_ID) {
       res.status(403).send("unauthorized");
       return;
     }
@@ -73,7 +74,7 @@ export module RatesController {
   export const updateChannelForRates = async (req, res, next) => {
     const { groupId } = req.user;
 
-    if (groupId != Roles.Admin) {
+    if (groupId !== SUPER_ADMIN_GROUP_ID) {
       res.status(403).send("unauthorized");
       return;
     }
@@ -94,7 +95,7 @@ export module RatesController {
   export const deleteRate = async (req, res, next) => {
     const { groupId } = req.user;
 
-    if (groupId != Roles.Admin) {
+    if (groupId !== SUPER_ADMIN_GROUP_ID) {
       res.status(403).send("unauthorized");
       return;
     }

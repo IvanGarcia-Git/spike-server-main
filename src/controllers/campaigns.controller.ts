@@ -3,6 +3,7 @@ import { CampaignsService } from "../services/campaigns.service";
 import { Roles } from "../enums/roles.enum";
 
 export module CampaignsController {
+  const SUPER_ADMIN_GROUP_ID = 1;
   export const createOrUpdate = async (req, res, next) => {
     const campaignData = req.body;
 
@@ -34,7 +35,7 @@ export module CampaignsController {
     const { uuid: campaignUuid } = req.params;
 
     try {
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }
@@ -63,7 +64,7 @@ export module CampaignsController {
     const leadSkip = (leadPageNumber - 1) * leadLimitNumber;
 
     try {
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }

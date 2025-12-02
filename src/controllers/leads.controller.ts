@@ -4,6 +4,7 @@ import { LeadLogsService } from "../services/lead-logs.service";
 import { LeadsService } from "../services/leads.service";
 
 export module LeadsController {
+  const SUPER_ADMIN_GROUP_ID = 1;
   export const count = async (req, res, next) => {
     try {
       const count = await LeadsService.count();
@@ -146,7 +147,7 @@ export module LeadsController {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }
@@ -167,7 +168,7 @@ export module LeadsController {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }

@@ -4,13 +4,14 @@ import { UserShareLeadsService } from "../services/user-share-leads.service";
 import { UsersService } from "../services/users.service";
 
 export module UserShareLeadsController {
+  const SUPER_ADMIN_GROUP_ID = 1;
   export const createBatch = async (req, res, next) => {
     const { userId, visibleUserIds } = req.body;
 
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }

@@ -21,7 +21,7 @@ const router = Router();
 router.post(
   "/",
   authenticateJWT,
-  upload.single("imgFile"),
+  upload.any(),
   CompaniesController.create
 );
 
@@ -32,7 +32,7 @@ router.get("/", authenticateJWT, CompaniesController.getAll);
 router.patch(
   "/:uuid",
   authenticateJWT,
-  upload.single("imgFile"),
+  upload.any(),
   CompaniesController.update
 );
 

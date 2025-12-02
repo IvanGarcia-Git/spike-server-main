@@ -1,8 +1,8 @@
 import { ContractsService } from "../services/contracts.service";
-import { Roles } from "../enums/roles.enum";
 import { AwsHelper } from "../helpers/aws.helper";
 
 export module ContractsController {
+  const SUPER_ADMIN_GROUP_ID = 1;
   export const count = async (req, res, next) => {
     try {
       const count = await ContractsService.count();
@@ -117,7 +117,7 @@ export module ContractsController {
 
       const contract = await ContractsService.getOne({ uuid });
 
-      if (!contract.isDraft && groupId != Roles.Admin) {
+      if (!contract.isDraft && groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("Only SuperAdmin can delete a contract that is not in draft mode.");
         return;
       }

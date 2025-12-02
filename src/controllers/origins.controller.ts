@@ -2,11 +2,12 @@ import { Roles } from "../enums/roles.enum";
 import { OriginsService } from "../services/origins.service";
 
 export module OriginsController {
+  const SUPER_ADMIN_GROUP_ID = 1;
   export const create = async (req, res, next) => {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }
@@ -34,7 +35,7 @@ export module OriginsController {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }

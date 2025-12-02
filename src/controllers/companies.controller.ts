@@ -1,16 +1,25 @@
 import { CompaniesService } from "../services/companies.service";
-import { Roles } from "../enums/roles.enum";
 
 export module CompaniesController {
+  const SUPER_ADMIN_GROUP_ID = 1;
+
   export const create = async (req, res, next) => {
     try {
+      console.log("=== CREATE COMPANY DEBUG ===");
+      console.log("Content-Type:", req.headers["content-type"]);
+      console.log("req.body:", JSON.stringify(req.body));
+      console.log("req.files:", req.files);
+      console.log("req.file:", req.file);
+      console.log("=== END DEBUG ===");
+
       const { groupId } = req.user;
 
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }
-      const companyImage: Express.Multer.File = req.file;
+      const files = req.files as Express.Multer.File[];
+      const companyImage = files?.find(f => f.fieldname === "imgFile");
       const companyData = req.body;
 
       const newCompany = await CompaniesService.create(
@@ -48,13 +57,14 @@ export module CompaniesController {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }
 
       const { uuid } = req.params;
-      const companyImage: Express.Multer.File = req.file;
+      const files = req.files as Express.Multer.File[];
+      const companyImage = files?.find(f => f.fieldname === "imgFile");
       const companyData = req.body;
 
       const updatedCompany = await CompaniesService.update(

@@ -2,11 +2,12 @@ import { Roles } from "../enums/roles.enum";
 import { ContractStatesService } from "../services/contract-states.service";
 
 export module ContractStatesController {
+  const SUPER_ADMIN_GROUP_ID = 1;
   export const create = async (req, res, next) => {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }
@@ -26,7 +27,7 @@ export module ContractStatesController {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }
@@ -55,7 +56,7 @@ export module ContractStatesController {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }
@@ -75,7 +76,7 @@ export module ContractStatesController {
     try {
       const { groupId } = req.user;
 
-      if (groupId != Roles.Admin) {
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
         res.status(403).send("unauthorized");
         return;
       }
