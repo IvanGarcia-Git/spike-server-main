@@ -11,3 +11,6 @@ data/
 # YoYo AI version control directory
 .yoyo/
 .vercel
+
+# Claude Code
+.claude/
