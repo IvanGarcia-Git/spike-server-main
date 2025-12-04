@@ -3,12 +3,12 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const isProduction = process.env.NODE_ENV === "production";
-const useSQLite = process.env.DB_TYPE === "sqlite" || (!isProduction && !process.env.DB_HOST);
+const useSQLite = process.env.DB_TYPE === "sqlite" || process.env.DB_PATH || (!isProduction && !process.env.DB_HOST);
 
 export const dataSource = useSQLite
   ? new DataSource({
       type: "better-sqlite3",
-      database: "spikes.db",
+      database: process.env.DB_PATH || "spikes.db",
       entities: isProduction
         ? ["dist/src/models/*.entity.js"]
         : [__dirname + "/src/models/*.entity.ts"],
