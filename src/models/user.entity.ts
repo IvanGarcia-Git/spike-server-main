@@ -24,6 +24,7 @@ import { UserShareLead } from "./user-share-lead.entity";
 import { File } from "./file.entity";
 import { Folder } from "./folder.entity";
 import { Absence } from "./absence.entity";
+import { TimeEntry } from "./time-entry.entity";
 import { UserShift } from "../enums/user-shift.enum";
 import { Roles } from "../enums/roles.enum";
 import { CommissionAssignment } from "./commission-assignment.entity";
@@ -212,6 +213,9 @@ export class User {
 
   @OneToMany(() => Absence, (absence) => absence.user)
   absences: Absence[];
+
+  @OneToMany(() => TimeEntry, (timeEntry) => timeEntry.user)
+  timeEntries: TimeEntry[];
 
   @OneToMany(() => CommissionAssignment, (ca) => ca.user)
   commissionAssignments: CommissionAssignment[];
