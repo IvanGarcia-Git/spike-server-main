@@ -7,8 +7,9 @@ const useSQLite = process.env.DB_TYPE === "sqlite" || process.env.DB_PATH || (!i
 
 export const dataSource = useSQLite
   ? new DataSource({
-      type: "better-sqlite3",
-      database: process.env.DB_PATH || "spikes.db",
+      type: "sqljs",
+      location: process.env.DB_PATH || "spikes.db",
+      autoSave: true,
       entities: isProduction
         ? ["dist/src/models/*.entity.js"]
         : [__dirname + "/src/models/*.entity.ts"],
