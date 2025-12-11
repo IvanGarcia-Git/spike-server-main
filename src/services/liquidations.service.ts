@@ -1,5 +1,5 @@
 import { dataSource } from "../../app-data-source";
-import { Liquidation, LiquidationStatus } from "../models/liquidation.entity";
+import { Liquidation, LiquidationStatus, LiquidationType } from "../models/liquidation.entity";
 import { User } from "../models/user.entity";
 import { CreateLiquidationDTO, UpdateLiquidationDTO } from "../dto/liquidation.dto";
 import { CommissionAssignment } from "../models/commission-assignment.entity";
@@ -10,16 +10,27 @@ export module LiquidationsService {
   const userRepository = dataSource.getRepository(User);
 
   export const create = async (dto: CreateLiquidationDTO): Promise<Liquidation> => {
-    const targetUser = await userRepository.findOneBy({ id: dto.userId });
-    if (!targetUser) {
-      throw new Error(`User with ID ${dto.userId} not found. Cannot create liquidation.`);
+    // Validar tipo obligatorio
+    if (!dto.type || !Object.values(LiquidationType).includes(dto.type)) {
+      throw new Error("El tipo de liquidación es obligatorio (INGRESO o GASTO).");
+    }
+
+    // Si se proporciona userId, verificar que el usuario exista
+    let targetUser = null;
+    if (dto.userId !== undefined && dto.userId !== null) {
+      targetUser = await userRepository.findOneBy({ id: dto.userId });
+      if (!targetUser) {
+        throw new Error(`User with ID ${dto.userId} not found. Cannot create liquidation.`);
+      }
     }
 
     const newLiquidation = liquidationRepository.create({
       name: dto.name,
       date: dto.date,
       status: dto.status || LiquidationStatus.PENDIENTE,
-      userId: dto.userId,
+      type: dto.type,
+      amount: dto.amount !== undefined ? dto.amount : null,
+      userId: dto.userId !== undefined ? dto.userId : null,
     });
 
     try {
@@ -122,14 +133,19 @@ export module LiquidationsService {
       throw new Error("Liquidation not found");
     }
 
-    // Permission check: Owner or Manager
-    if (liquidation.userId !== requestingUserId && !isManager) {
+    // Permission check: Owner or Manager (si no tiene userId asignado, solo managers pueden editar)
+    if (liquidation.userId !== null && liquidation.userId !== requestingUserId && !isManager) {
+      throw new Error("Not permission");
+    }
+    if (liquidation.userId === null && !isManager) {
       throw new Error("Not permission");
     }
 
     if (dto.name !== undefined) liquidation.name = dto.name;
     if (dto.status !== undefined) liquidation.status = dto.status;
     if (dto.date !== undefined) liquidation.date = dto.date;
+    if (dto.type !== undefined) liquidation.type = dto.type;
+    if (dto.amount !== undefined) liquidation.amount = dto.amount;
 
     try {
       return await liquidationRepository.save(liquidation);
@@ -151,8 +167,11 @@ export module LiquidationsService {
       throw new Error("Liquidation not found");
     }
 
-    // Permission check: Owner or Manager
-    if (liquidation.userId !== requestingUserId && !isManager) {
+    // Permission check: Owner or Manager (si no tiene userId asignado, solo managers pueden eliminar)
+    if (liquidation.userId !== null && liquidation.userId !== requestingUserId && !isManager) {
+      throw new Error("Not permission");
+    }
+    if (liquidation.userId === null && !isManager) {
       throw new Error("Not permission");
     }
 

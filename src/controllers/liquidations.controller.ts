@@ -1,19 +1,33 @@
 import { LiquidationsService } from "../services/liquidations.service";
 import { CreateLiquidationDTO, UpdateLiquidationDTO } from "../dto/liquidation.dto";
+import { LiquidationType } from "../models/liquidation.entity";
 
 export module LiquidationsController {
   export const create = async (req, res, next) => {
     const dto: CreateLiquidationDTO = req.body;
 
     try {
-      if (!dto.name || !dto.date || dto.userId === undefined || dto.userId === null) {
-        return res.status(400).json({ message: "Name, date, and a valid userId are required." });
+      // Validaciones básicas
+      if (!dto.name || !dto.name.trim()) {
+        return res.status(400).json({ message: "El nombre de la liquidación es obligatorio." });
       }
 
-      // if (dto.userId !== req.user.id && !req.user.isManager) {
-      //   return res.status(403).json({ message: "Not permission" });
-      // }
+      if (!dto.date) {
+        return res.status(400).json({ message: "La fecha es obligatoria." });
+      }
 
+      // Validar formato de fecha YYYY-MM-DD
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(dto.date)) {
+        return res.status(400).json({ message: "La fecha debe tener formato YYYY-MM-DD." });
+      }
+
+      // Validar tipo obligatorio
+      if (!dto.type || !Object.values(LiquidationType).includes(dto.type)) {
+        return res.status(400).json({ message: "El tipo de liquidación es obligatorio (INGRESO o GASTO)." });
+      }
+
+      // userId ahora es opcional (puede ser null o undefined)
       const liquidation = await LiquidationsService.create(dto);
       res.status(201).json(liquidation);
     } catch (err) {

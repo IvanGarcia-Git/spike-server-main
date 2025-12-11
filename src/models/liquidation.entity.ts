@@ -19,6 +19,12 @@ export enum LiquidationStatus {
   RECHAZADA = "RECHAZADA",
 }
 
+// Tipo de liquidación: INGRESO suma al saldo, GASTO resta del saldo
+export enum LiquidationType {
+  INGRESO = "INGRESO",
+  GASTO = "GASTO",
+}
+
 @Entity("liquidations")
 export class Liquidation {
   @PrimaryGeneratedColumn()
@@ -44,8 +50,25 @@ export class Liquidation {
   })
   status: LiquidationStatus;
 
-  @Column()
-  userId: number;
+  // Tipo de liquidación: INGRESO suma al saldo, GASTO resta del saldo
+  @Column({
+    type: "varchar",
+    default: LiquidationType.INGRESO,
+  })
+  type: LiquidationType;
+
+  // Monto manual para liquidaciones sin contratos vinculados (opcional)
+  @Column({
+    type: "decimal",
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    default: null,
+  })
+  amount: number | null;
+
+  @Column({ nullable: true })
+  userId: number | null;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -55,10 +78,10 @@ export class Liquidation {
 
   @ManyToOne(() => User, (user) => user.liquidations, {
     onDelete: "CASCADE",
-    nullable: false,
+    nullable: true,
   })
   @JoinColumn({ name: "userId" })
-  user: User;
+  user: User | null;
 
   @OneToMany(() => LiquidationContract, (liquidationContract) => liquidationContract.liquidation, {
     cascade: true,
