@@ -24,8 +24,8 @@ export class Task {
   @Column("varchar", { length: 255 })
   subject: string;
 
-  @Column("datetime")
-  startDate: Date;
+  @Column("datetime", { nullable: true })
+  startDate: Date | null;
 
   @Column()
   assigneeUserId: number;

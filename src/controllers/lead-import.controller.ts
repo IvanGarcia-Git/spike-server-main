@@ -2,13 +2,37 @@ import { Request, Response, NextFunction } from "express";
 import { LeadImportService } from "../services/lead-import.service";
 import { LeadImportConfirmRequestDTO } from "../dto/lead-import.dto";
 
+const SUPER_ADMIN_GROUP_ID = 1;
+
+// Extender el tipo Request para incluir user
+interface AuthenticatedRequest extends Request {
+  user?: {
+    userId: number;
+    groupId: number;
+    isManager: boolean;
+  };
+}
+
 export module LeadImportController {
+  /**
+   * Verifica que el usuario es Admin o Manager para importar leads
+   */
+  const canImportLeads = (req: AuthenticatedRequest): boolean => {
+    if (!req.user) return false;
+    return req.user.groupId === SUPER_ADMIN_GROUP_ID || req.user.isManager;
+  };
+
   export const preview = async (
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
+      // Solo Admin o Manager pueden importar leads
+      if (!canImportLeads(req)) {
+        return res.status(403).json({ error: "only-admin-or-manager-can-import-leads" });
+      }
+
       const file = req.file;
 
       if (!file) {
@@ -24,11 +48,16 @@ export module LeadImportController {
   };
 
   export const confirm = async (
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {
     try {
+      // Solo Admin o Manager pueden importar leads
+      if (!canImportLeads(req)) {
+        return res.status(403).json({ error: "only-admin-or-manager-can-import-leads" });
+      }
+
       const { sessionId, rowsToImport }: LeadImportConfirmRequestDTO = req.body;
 
       if (!sessionId) {
@@ -53,7 +82,7 @@ export module LeadImportController {
   };
 
   export const downloadTemplate = async (
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ) => {

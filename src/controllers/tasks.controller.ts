@@ -14,6 +14,16 @@ export module TasksController {
         taskData.assigneeUserId = userId;
       }
 
+      // Handle optional startDate - set to null if empty or invalid
+      if (!taskData.startDate || taskData.startDate === "" || taskData.startDate === "T") {
+        taskData.startDate = null;
+      } else {
+        const parsedDate = new Date(taskData.startDate);
+        if (isNaN(parsedDate.getTime())) {
+          taskData.startDate = null;
+        }
+      }
+
       const initialComment = req.body.initialComment
         ? { text: req.body.initialComment, document: req.file }
         : undefined;
@@ -110,6 +120,18 @@ export module TasksController {
     try {
       const { taskUuid } = req.params;
       const taskData = req.body;
+
+      // Handle optional startDate - set to null if empty or invalid
+      if (taskData.startDate !== undefined) {
+        if (!taskData.startDate || taskData.startDate === "" || taskData.startDate === "T") {
+          taskData.startDate = null;
+        } else {
+          const parsedDate = new Date(taskData.startDate);
+          if (isNaN(parsedDate.getTime())) {
+            taskData.startDate = null;
+          }
+        }
+      }
 
       const updatedTask = await TasksService.update(taskUuid, taskData);
       res.json(updatedTask);

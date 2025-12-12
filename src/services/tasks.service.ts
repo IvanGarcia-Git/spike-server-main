@@ -57,7 +57,7 @@ export module TasksService {
           eventType: EventType.TASK,
           content: NotificationContents.TaskAssigned(savedTask.subject),
           userId: taskData.assigneeUserId,
-          startDate: savedTask.startDate,
+          startDate: savedTask.startDate || new Date(),
         },
         NotificationPreference.TASK
       );
@@ -97,10 +97,20 @@ export module TasksService {
     try {
       const taskRepository = dataSource.getRepository(Task);
 
-      return await taskRepository.find({
+      const tasks = await taskRepository.find({
         where,
         relations,
-        order: { startDate: "DESC" },
+        order: { createdAt: "DESC" },
+      });
+
+      // Sort tasks: those with startDate first (by startDate DESC), then those without (by createdAt DESC)
+      return tasks.sort((a, b) => {
+        if (a.startDate && b.startDate) {
+          return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+        }
+        if (a.startDate && !b.startDate) return -1;
+        if (!a.startDate && b.startDate) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
     } catch (error) {
       throw error;
