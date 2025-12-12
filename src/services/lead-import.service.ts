@@ -374,7 +374,6 @@ export module LeadImportService {
     ];
 
     const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_array(templateData);
     const ws = XLSX.utils.aoa_to_sheet(templateData);
 
     // Set column widths

@@ -32,7 +32,7 @@ const upload = multer({
 });
 
 // Middleware to check manager or super admin permissions
-const requireManagerOrAdmin = (req: Request, res: Response, next: NextFunction) => {
+const requireManagerOrAdmin = (req: any, res: Response, next: NextFunction) => {
   const { isManager, groupId } = req.user as { isManager: boolean; groupId: number };
 
   if (!isManager && groupId !== 1) {
