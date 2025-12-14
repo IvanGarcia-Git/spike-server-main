@@ -4,6 +4,7 @@ import { Company } from "./company.entity";
 import { Contract } from "./contract.entity";
 import { TelephonyData } from "./telephony-data.entity";
 import { CommissionAssignment } from "./commission-assignment.entity";
+import { CommissionTier } from "./commission-tier.entity";
 
 export enum RateTypes {
   TWO = "2.0",
@@ -121,6 +122,9 @@ export class Rate {
 
   @OneToMany(() => CommissionAssignment, (ca) => ca.rate)
   commissionAssignments: CommissionAssignment[];
+
+  @OneToMany(() => CommissionTier, (tier) => tier.rate)
+  commissionTiers: CommissionTier[];
 
   @ManyToMany(() => TelephonyData, (telephonyData) => telephonyData.rates)
   telephonyData: TelephonyData[];

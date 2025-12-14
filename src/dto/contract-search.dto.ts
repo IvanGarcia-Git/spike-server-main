@@ -11,6 +11,7 @@ export interface ContractSearchDTO {
   contractStateIds?: number[];
   includeDrafts?: boolean;
   contractUserIds?: number[];
+  originIds?: number[];
   payed?: boolean;
   type?: ContractType;
   solarPlates?: boolean;

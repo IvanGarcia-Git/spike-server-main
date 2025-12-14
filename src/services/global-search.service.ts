@@ -188,6 +188,14 @@ export module GlobalSearchService {
       customerCondition.province = searchParams.customerProvince;
     }
 
+    if (
+      searchParams.originIds &&
+      Array.isArray(searchParams.originIds) &&
+      searchParams.originIds.length > 0
+    ) {
+      customerCondition.originId = In(searchParams.originIds);
+    }
+
     if (Object.keys(customerCondition).length > 0) {
       whereCondition.customer = customerCondition;
     }

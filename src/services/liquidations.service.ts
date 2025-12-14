@@ -3,6 +3,7 @@ import { Liquidation, LiquidationStatus, LiquidationType } from "../models/liqui
 import { User } from "../models/user.entity";
 import { CreateLiquidationDTO, UpdateLiquidationDTO } from "../dto/liquidation.dto";
 import { CommissionAssignment } from "../models/commission-assignment.entity";
+import { CommissionTiersService } from "./commission-tiers.service";
 
 export module LiquidationsService {
   const liquidationRepository = dataSource.getRepository(Liquidation);
@@ -104,18 +105,31 @@ export module LiquidationsService {
     }
 
     for (const lc of liquidation.liquidationContracts) {
-      if (lc.contract && (lc.contract.channelId || lc.contract.rate.channelId) && lc.contract.rateId && lc.contract.userId) {
+      // Si hay consumo definido, calcular por tramos
+      if (lc.consumo !== null && lc.consumo !== undefined && lc.contract?.rateId) {
+        const tierCommission = await CommissionTiersService.calculateCommission(
+          lc.contract.rateId,
+          lc.consumo,
+          lc.isRenewal || false
+        );
+        (lc as any).assignedCommissionAmount = tierCommission ?? 0;
+        (lc as any).calculatedByTier = true;
+      }
+      // Fallback a CommissionAssignment
+      else if (lc.contract && (lc.contract.channelId || lc.contract.rate?.channelId) && lc.contract.rateId && lc.contract.userId) {
         const assignment = await commissionAssignmentRepository.findOne({
           where: {
-            channel: { id: (lc.contract.channelId || lc.contract.rate.channelId) },
+            channel: { id: (lc.contract.channelId || lc.contract.rate?.channelId) },
             rate: { id: lc.contract.rateId },
             user: { id: lc.contract.userId },
           },
         });
 
         (lc as any).assignedCommissionAmount = assignment ? assignment.amount : null;
+        (lc as any).calculatedByTier = false;
       } else {
         (lc as any).assignedCommissionAmount = null;
+        (lc as any).calculatedByTier = false;
       }
     }
 
@@ -183,17 +197,30 @@ export module LiquidationsService {
     if (liquidation.liquidationContracts && liquidation.liquidationContracts.length > 0) {
       for (const lc of liquidation.liquidationContracts) {
         let effectiveCommission = 0;
+
+        // 1. Si hay override manual, usarlo directamente
         if (lc.overrideCommission !== null && lc.overrideCommission !== undefined) {
           effectiveCommission = parseFloat(String(lc.overrideCommission));
-        } else if (
+        }
+        // 2. Si hay consumo definido, calcular por tramos
+        else if (lc.consumo !== null && lc.consumo !== undefined && lc.contract?.rateId) {
+          const tierCommission = await CommissionTiersService.calculateCommission(
+            lc.contract.rateId,
+            lc.consumo,
+            lc.isRenewal || false
+          );
+          effectiveCommission = tierCommission ?? 0;
+        }
+        // 3. Fallback: usar CommissionAssignment existente
+        else if (
           lc.contract &&
-          (lc.contract.channelId || lc.contract.rate.channelId)&&
+          (lc.contract.channelId || lc.contract.rate?.channelId) &&
           lc.contract.rateId &&
           lc.contract.userId
         ) {
           const assignment = await commissionAssignmentRepository.findOne({
             where: {
-              channel: { id: lc.contract.channelId },
+              channel: { id: lc.contract.channelId || lc.contract.rate?.channelId },
               rate: { id: lc.contract.rateId },
               user: { id: lc.contract.userId },
             },
@@ -202,6 +229,7 @@ export module LiquidationsService {
             effectiveCommission = parseFloat(String(assignment.amount));
           }
         }
+
         totalCommission += effectiveCommission;
       }
     }

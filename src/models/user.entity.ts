@@ -32,6 +32,7 @@ import { Liquidation } from "./liquidation.entity";
 import { UserDocument } from "./user-document.entity";
 import { Note } from "./note.entity";
 import { NoteFolder } from "./note-folder.entity";
+import { Invoice } from "./invoice.entity";
 
 //Also dynamic keys for user groups e.j "group${group.id}"
 export enum LeadPriority {
@@ -231,6 +232,9 @@ export class User {
 
   @OneToMany(() => NoteFolder, (noteFolder) => noteFolder.user)
   noteFolders: NoteFolder[];
+
+  @OneToMany(() => Invoice, (invoice) => invoice.user)
+  invoices: Invoice[];
 
   @BeforeInsert()
   @BeforeUpdate()

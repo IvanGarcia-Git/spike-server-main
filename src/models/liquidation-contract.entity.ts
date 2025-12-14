@@ -38,6 +38,12 @@ export class LiquidationContract {
   })
   overrideCommission?: number;
 
+  @Column("float", { nullable: true })
+  consumo?: number;
+
+  @Column("boolean", { default: false })
+  isRenewal: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 
