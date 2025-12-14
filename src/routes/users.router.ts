@@ -102,4 +102,8 @@ router.get("/documents/download/:documentUuid", authenticateJWT, UsersController
 
 router.delete("/documents/:documentUuid", authenticateJWT, UsersController.deleteDocument);
 
+// Datos fiscales del emisor (para facturación)
+router.get("/issuer-fiscal-data", authenticateJWT, UsersController.getIssuerFiscalData);
+router.patch("/issuer-fiscal-data", authenticateJWT, UsersController.updateIssuerFiscalData);
+
 export default router;

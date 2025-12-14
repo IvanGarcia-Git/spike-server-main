@@ -322,4 +322,26 @@ export module UsersController {
       next(error);
     }
   }
+
+  // Datos fiscales del emisor
+  export const getIssuerFiscalData = async (req, res, next) => {
+    try {
+      const { userId } = req.user;
+      const fiscalData = await UsersService.getIssuerFiscalData(userId);
+      res.json(fiscalData);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  export const updateIssuerFiscalData = async (req, res, next) => {
+    try {
+      const { userId } = req.user;
+      const fiscalData = req.body;
+      const updatedData = await UsersService.updateIssuerFiscalData(userId, fiscalData);
+      res.json(updatedData);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

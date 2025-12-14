@@ -337,7 +337,7 @@ export module UsersService {
       try {
         userData = JSON.parse(userDataParam);
       } catch (e) {
-        throw new ValidationError(ErrorMessages.Generic.INVALID_FORMAT("datos de usuario"), {
+        throw new ValidationError(ErrorMessages.Generic.INVALID_FORMAT("datos de usuario", "JSON válido"), {
           field: "userData",
           reason: "JSON inválido",
         });
@@ -540,5 +540,85 @@ export module UsersService {
     await userDocumentRepository.remove(document);
 
     return true;
+  };
+
+  // Datos fiscales del emisor
+  export interface IssuerFiscalData {
+    issuerBusinessName?: string;
+    issuerNif?: string;
+    issuerAddress?: string;
+    issuerCity?: string;
+    issuerPostalCode?: string;
+    issuerCountry?: string;
+  }
+
+  export const getIssuerFiscalData = async (userId: number): Promise<IssuerFiscalData> => {
+    const user = await dataSource.getRepository(User).findOne({
+      where: { id: userId },
+      select: [
+        "issuerBusinessName",
+        "issuerNif",
+        "issuerAddress",
+        "issuerCity",
+        "issuerPostalCode",
+        "issuerCountry",
+      ],
+    });
+
+    if (!user) {
+      throw new NotFoundError("Usuario", userId.toString());
+    }
+
+    return {
+      issuerBusinessName: user.issuerBusinessName || null,
+      issuerNif: user.issuerNif || null,
+      issuerAddress: user.issuerAddress || null,
+      issuerCity: user.issuerCity || null,
+      issuerPostalCode: user.issuerPostalCode || null,
+      issuerCountry: user.issuerCountry || null,
+    };
+  };
+
+  export const updateIssuerFiscalData = async (
+    userId: number,
+    fiscalData: IssuerFiscalData
+  ): Promise<IssuerFiscalData> => {
+    const userRepository = dataSource.getRepository(User);
+    const user = await userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundError("Usuario", userId.toString());
+    }
+
+    // Actualizar solo los campos fiscales del emisor
+    if (fiscalData.issuerBusinessName !== undefined) {
+      user.issuerBusinessName = fiscalData.issuerBusinessName || null;
+    }
+    if (fiscalData.issuerNif !== undefined) {
+      user.issuerNif = fiscalData.issuerNif || null;
+    }
+    if (fiscalData.issuerAddress !== undefined) {
+      user.issuerAddress = fiscalData.issuerAddress || null;
+    }
+    if (fiscalData.issuerCity !== undefined) {
+      user.issuerCity = fiscalData.issuerCity || null;
+    }
+    if (fiscalData.issuerPostalCode !== undefined) {
+      user.issuerPostalCode = fiscalData.issuerPostalCode || null;
+    }
+    if (fiscalData.issuerCountry !== undefined) {
+      user.issuerCountry = fiscalData.issuerCountry || null;
+    }
+
+    await userRepository.save(user);
+
+    return {
+      issuerBusinessName: user.issuerBusinessName,
+      issuerNif: user.issuerNif,
+      issuerAddress: user.issuerAddress,
+      issuerCity: user.issuerCity,
+      issuerPostalCode: user.issuerPostalCode,
+      issuerCountry: user.issuerCountry,
+    };
   };
 }

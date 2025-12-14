@@ -162,6 +162,25 @@ export class User {
   @Column("simple-json", { nullable: true })
   notificationsEmailPreferences?: NotificationPreference[];
 
+  // Datos fiscales del emisor (para facturación)
+  @Column("varchar", { length: 255, nullable: true })
+  issuerBusinessName?: string;
+
+  @Column("varchar", { length: 20, nullable: true })
+  issuerNif?: string;
+
+  @Column("varchar", { length: 255, nullable: true })
+  issuerAddress?: string;
+
+  @Column("varchar", { length: 100, nullable: true })
+  issuerCity?: string;
+
+  @Column("varchar", { length: 10, nullable: true })
+  issuerPostalCode?: string;
+
+  @Column("varchar", { length: 50, nullable: true })
+  issuerCountry?: string;
+
   //Relations
   @OneToOne(() => Lead, (lead) => lead.user, {
     nullable: true,
