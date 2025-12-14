@@ -85,6 +85,35 @@ export module AbsencesController {
     }
   };
 
+  export const getAllByUserIds = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    const { userIds } = req.body;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "userIds array is required and must not be empty." });
+    }
+
+    const validUserIds = userIds.filter((id) => typeof id === "number" && !isNaN(id));
+    if (validUserIds.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "userIds must contain valid numeric values." });
+    }
+
+    try {
+      const absences = await AbsencesService.getManyByUserIds(validUserIds);
+      res.status(200).json(absences);
+    } catch (error) {
+      console.error("Error fetching absences by user IDs:", error);
+      next(error);
+    }
+  };
+
   export const updateAbsence = async (
     req: Request,
     res: Response,

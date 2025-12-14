@@ -7,6 +7,7 @@ import {
   LessThanOrEqual,
   Between,
   IsNull,
+  In,
 } from "typeorm";
 import { NotificationsService } from "./notifications.service";
 import { EventType } from "../models/notification.entity";
@@ -60,6 +61,14 @@ export module AbsencesService {
     relations: FindOptionsRelations<Absence> = {}
   ): Promise<Absence[]> => {
     const records = await getManyBy({ userId }, relations);
+    return records.sort((a, b) => a.startDate.localeCompare(b.startDate));
+  };
+
+  export const getManyByUserIds = async (
+    userIds: number[],
+    relations: FindOptionsRelations<Absence> = {}
+  ): Promise<Absence[]> => {
+    const records = await getManyBy({ userId: In(userIds) }, { ...relations, user: true });
     return records.sort((a, b) => a.startDate.localeCompare(b.startDate));
   };
 

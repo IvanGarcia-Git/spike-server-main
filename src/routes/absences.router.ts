@@ -6,6 +6,7 @@ const router = Router();
 
 router.post("/", authenticateJWT, AbsencesController.create);
 router.get("/user/:userId", authenticateJWT, AbsencesController.getAllByUserId);
+router.post("/users", authenticateJWT, AbsencesController.getAllByUserIds);
 router.patch("/:uuid", authenticateJWT, AbsencesController.updateAbsence);
 router.delete("/:uuid", authenticateJWT, AbsencesController.deleteAbsence);
 

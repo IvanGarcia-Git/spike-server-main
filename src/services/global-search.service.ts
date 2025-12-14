@@ -21,6 +21,7 @@ import { Task } from "../models/task.entity";
 import { TasksService } from "./tasks.service";
 import { UsersService } from "./users.service";
 import { Rate } from "../models/rate.entity";
+import { AgentUserVisibleUserService } from "./user-agent-visible-user.service";
 
 export module GlobalSearchService {
   export const search = async (
@@ -63,7 +64,7 @@ export module GlobalSearchService {
   };
 
   export const searchCalendarData = async (
-    userId: number,
+    userIds: number[],
     startDate: Date,
     endDate: Date
   ): Promise<{
@@ -72,20 +73,29 @@ export module GlobalSearchService {
     leadCalls: LeadCall[];
   }> => {
     try {
-      const tasksFound = await TasksService.getMany({
-        assigneeUserId: userId,
-        startDate: Between(startDate, endDate),
-      });
+      const tasksFound = await TasksService.getMany(
+        {
+          assigneeUserId: In(userIds),
+          startDate: Between(startDate, endDate),
+        },
+        { assigneeUser: true }
+      );
 
-      const remindersFound = await RemindersService.getMany({
-        userId: userId,
-        startDate: Between(startDate, endDate),
-      });
+      const remindersFound = await RemindersService.getMany(
+        {
+          userId: In(userIds),
+          startDate: Between(startDate, endDate),
+        },
+        { user: true }
+      );
 
-      const leadCallsFound = await LeadCallsService.getMany({
-        userId: userId,
-        startDate: Between(startDate, endDate),
-      });
+      const leadCallsFound = await LeadCallsService.getMany(
+        {
+          userId: In(userIds),
+          startDate: Between(startDate, endDate),
+        },
+        { user: true }
+      );
 
       return {
         tasks: tasksFound,
@@ -94,6 +104,38 @@ export module GlobalSearchService {
       };
     } catch (error) {
       throw new Error(`Error fetching calendar data: ${error.message}`);
+    }
+  };
+
+  export const getVisibleUserIdsForCalendar = async (
+    userId: number,
+    isManager: boolean,
+    groupId: number
+  ): Promise<number[]> => {
+    try {
+      // Always include current user
+      const visibleUserIds = new Set<number>([userId]);
+
+      if (isManager) {
+        // Managers can see their team
+        const teamUserIds = await UsersService.getVisibleUserIds(userId, isManager, groupId);
+        teamUserIds.forEach((id) => visibleUserIds.add(id));
+      } else {
+        // Non-managers can see users configured in agent visibility
+        const agentVisibleUsers = await AgentUserVisibleUserService.getMany(
+          { agentId: userId },
+          { visibleUser: true }
+        );
+        agentVisibleUsers.forEach((relation) => {
+          if (relation.visibleUser) {
+            visibleUserIds.add(relation.visibleUser.id);
+          }
+        });
+      }
+
+      return Array.from(visibleUserIds);
+    } catch (error) {
+      throw new Error(`Error getting visible user IDs: ${error.message}`);
     }
   };
 
