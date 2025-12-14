@@ -15,6 +15,13 @@ import { LeadPriority, User } from "../models/user.entity";
 import { UsersService } from "./users.service";
 import { AutomaticCreateLeadDTO } from "../dto/automatic-lead-create.dto";
 import { LeadDocument } from "../models/lead-document.entity";
+import { ValidationService } from "./validation.service";
+import {
+  NotFoundError,
+  ValidationError,
+  BusinessRuleError,
+} from "../errors/app-errors";
+import { ErrorMessages } from "../errors/error-messages";
 
 export module LeadsService {
   export const count = async (): Promise<number> => {
@@ -22,44 +29,88 @@ export module LeadsService {
     return await leadRepository.count();
   };
 
+  /**
+   * Valida los datos de un lead antes de crear/actualizar
+   */
+  const validateLeadData = (
+    leadData: Partial<Lead> | AutomaticCreateLeadDTO,
+    isCreate: boolean = true
+  ): void => {
+    // Validaciones obligatorias
+    if (isCreate) {
+      ValidationService.required(
+        (leadData as AutomaticCreateLeadDTO).phoneNumber,
+        "phoneNumber",
+        "Teléfono"
+      );
+      ValidationService.required(
+        (leadData as AutomaticCreateLeadDTO).campaignName,
+        "campaignName",
+        "Campaña"
+      );
+    }
+
+    // Validaciones de formato
+    if ((leadData as AutomaticCreateLeadDTO).phoneNumber) {
+      ValidationService.phoneSpain(
+        (leadData as AutomaticCreateLeadDTO).phoneNumber,
+        "phoneNumber",
+        "Teléfono"
+      );
+    }
+
+    if ((leadData as any).email) {
+      ValidationService.email((leadData as any).email, "email", "Email");
+    }
+
+    // Validaciones de longitud
+    if ((leadData as AutomaticCreateLeadDTO).fullName) {
+      ValidationService.length(
+        (leadData as AutomaticCreateLeadDTO).fullName,
+        "fullName",
+        { min: 2, max: 150 },
+        "Nombre completo"
+      );
+    }
+  };
+
   export const create = async (
     leadData: AutomaticCreateLeadDTO,
     billFile?: Express.Multer.File
   ): Promise<Lead> => {
-    try {
-      const leadRepository = dataSource.getRepository(Lead);
+    const leadRepository = dataSource.getRepository(Lead);
 
-      const campaign = await CampaignsService.createOrGet({
-        name: leadData.campaignName,
-        source: leadData?.campaignSource,
-      });
+    // Validar datos del lead
+    validateLeadData(leadData, true);
 
-      const newLead = leadRepository.create({
-        ...leadData,
-        campaignId: campaign.id,
-      });
+    const campaign = await CampaignsService.createOrGet({
+      name: leadData.campaignName,
+      source: leadData?.campaignSource,
+    });
 
-      if (billFile) {
-        newLead.billUri = await AwsHelper.uploadGenericCommentDocumentToS3("leadBill", billFile);
-      }
+    const newLead = leadRepository.create({
+      ...leadData,
+      campaignId: campaign.id,
+    });
 
-      const leadFound = await leadRepository.findOneBy({
-        phoneNumber: leadData.phoneNumber,
-      });
-
-      if (leadFound) {
-        newLead.leadStateId = LeadStates.Repetido;
-      } else {
-        await CallBellHelper.createContactAndSendMessage(
-          leadData.phoneNumber,
-          leadData.fullName || leadData.phoneNumber
-        );
-      }
-
-      return await leadRepository.save(newLead);
-    } catch (error) {
-      throw new Error(`Error creating Lead: ${error.message}`);
+    if (billFile) {
+      newLead.billUri = await AwsHelper.uploadGenericCommentDocumentToS3("leadBill", billFile);
     }
+
+    const leadFound = await leadRepository.findOneBy({
+      phoneNumber: leadData.phoneNumber,
+    });
+
+    if (leadFound) {
+      newLead.leadStateId = LeadStates.Repetido;
+    } else {
+      await CallBellHelper.createContactAndSendMessage(
+        leadData.phoneNumber,
+        leadData.fullName || leadData.phoneNumber
+      );
+    }
+
+    return await leadRepository.save(newLead);
   };
 
   export const update = async (
@@ -67,128 +118,111 @@ export module LeadsService {
     leadData: Partial<Lead>,
     billFile?: Express.Multer.File
   ): Promise<Lead> => {
-    try {
-      const leadRepository = dataSource.getRepository(Lead);
+    const leadRepository = dataSource.getRepository(Lead);
 
-      const lead = await leadRepository.findOne({ where: { uuid } });
+    const lead = await leadRepository.findOne({ where: { uuid } });
 
-      if (!lead) {
-        throw new Error("lead-not-found");
-      }
-
-      if (billFile) {
-        leadData.billUri = await AwsHelper.uploadGenericCommentDocumentToS3("leadBill", billFile);
-      }
-
-      Object.assign(lead, leadData);
-
-      return await leadRepository.save(lead);
-    } catch (error) {
-      throw error;
+    if (!lead) {
+      throw new NotFoundError("Lead", uuid);
     }
+
+    // Validar datos del lead (formato solamente)
+    validateLeadData(leadData, false);
+
+    if (billFile) {
+      leadData.billUri = await AwsHelper.uploadGenericCommentDocumentToS3("leadBill", billFile);
+    }
+
+    Object.assign(lead, leadData);
+
+    return await leadRepository.save(lead);
   };
 
   export const remove = async (uuid: string): Promise<boolean> => {
-    try {
-      const leadRepository = dataSource.getRepository(Lead);
-      const result = await leadRepository.delete({ uuid });
+    const leadRepository = dataSource.getRepository(Lead);
+    const result = await leadRepository.delete({ uuid });
 
-      if (result.affected === 0) {
-        throw new Error("lead not found");
-      }
-
-      return true;
-    } catch (error) {
-      throw new Error(`Error deleting lead with uuid ${uuid}: ${error.message}`);
+    if (result.affected === 0) {
+      throw new NotFoundError("Lead", uuid);
     }
+
+    return true;
   };
 
   export const getOne = async (
     where: FindOptionsWhere<Lead>,
     relations: FindOptionsRelations<Lead> = {}
   ): Promise<Lead> => {
-    try {
-      const leadRepository = dataSource.getRepository(Lead);
+    const leadRepository = dataSource.getRepository(Lead);
 
-      const leadFound = await leadRepository.findOne({
-        where,
-        relations,
-      });
+    const leadFound = await leadRepository.findOne({
+      where,
+      relations,
+    });
 
-      if (!leadFound) {
-        throw new Error("lead-not-found");
-      }
-
-      return leadFound;
-    } catch (error) {
-      throw error;
+    if (!leadFound) {
+      const identifier = where.uuid || where.id;
+      throw new NotFoundError("Lead", identifier?.toString());
     }
+
+    return leadFound;
   };
 
   export const getMany = async (
     where: FindOptionsWhere<Lead>,
     relations: FindOptionsRelations<Lead> = {}
   ): Promise<Lead[]> => {
-    try {
-      const leadRepository = dataSource.getRepository(Lead);
+    const leadRepository = dataSource.getRepository(Lead);
 
-      return await leadRepository.find({
-        where,
-        relations,
-        order: { updatedAt: "DESC" },
-      });
-    } catch (error) {
-      throw error;
-    }
+    return await leadRepository.find({
+      where,
+      relations,
+      order: { updatedAt: "DESC" },
+    });
   };
 
   export const assignToUser = async (userId: number, leadId: number): Promise<Lead> => {
-    try {
-      const userRepository = dataSource.getRepository(User);
-      const leadRepository = dataSource.getRepository(Lead);
+    const userRepository = dataSource.getRepository(User);
+    const leadRepository = dataSource.getRepository(Lead);
 
-      const leadFound = await leadRepository.findOne({
-        where: { id: leadId },
-        relations: { user: true },
+    const leadFound = await leadRepository.findOne({
+      where: { id: leadId },
+      relations: { user: true },
+    });
+
+    if (!leadFound || leadFound?.user) {
+      return null;
+    }
+
+    try {
+      const userDetail = await userRepository.findOne({
+        where: { id: userId },
       });
 
-      if (!leadFound || leadFound?.user) {
-        return null;
-      }
-
-      try {
-        const userDetail = await userRepository.findOne({
-          where: { id: userId },
-        });
-
-        await CallBellHelper.assignUserToContact(leadFound.phoneNumber, userDetail.email);
-      } catch (error) {
-        console.error("Error assigning user to CallBell contact:", error);
-      }
-
-      await userRepository.update(userId, { leadId: leadFound.id });
-
-      return leadFound;
+      await CallBellHelper.assignUserToContact(leadFound.phoneNumber, userDetail.email);
     } catch (error) {
-      throw error;
+      console.error("Error assigning user to CallBell contact:", error);
     }
+
+    await userRepository.update(userId, { leadId: leadFound.id });
+
+    return leadFound;
   };
 
   export const assignToQueue = async (userId: number, leadUuid: string): Promise<Lead> => {
-    try {
-      const leadRepository = dataSource.getRepository(Lead);
+    const leadRepository = dataSource.getRepository(Lead);
 
-      const lead = await getOne({ uuid: leadUuid });
+    const lead = await getOne({ uuid: leadUuid });
 
-      await LeadQueuesService.create(lead.id, userId);
+    // Validar que el usuario exista
+    await ValidationService.userExists(userId, "asignación de lead");
 
-      return await leadRepository.save({
-        ...lead,
-        leadStateId: LeadStates.AgendarUsuario,
-      });
-    } catch (error) {
-      throw error;
-    }
+    await LeadQueuesService.create(lead.id, userId);
+
+    return await leadRepository.save({
+      ...lead,
+      leadStateId: LeadStates.AgendarUsuario,
+    });
   };
 
   export const typeLead = async (
@@ -200,92 +234,96 @@ export module LeadsService {
       userToAssignId?: number;
     }
   ): Promise<Lead> => {
-    try {
-      const userRepository = dataSource.getRepository(User);
-      const leadRepository = dataSource.getRepository(Lead);
+    const userRepository = dataSource.getRepository(User);
+    const leadRepository = dataSource.getRepository(Lead);
 
-      const user = await userRepository.findOne({
-        where: { id: userId },
-        relations: { lead: { leadLogs: true } },
-      });
+    const user = await userRepository.findOne({
+      where: { id: userId },
+      relations: { lead: { leadLogs: true } },
+    });
 
-      const lead = user?.lead;
+    const lead = user?.lead;
 
-      if (!lead) {
-        return await assignNewLeadToUser(userId);
-      }
-
-      await LeadLogsService.create({
-        userId,
-        leadStateId,
-        leadId: lead.id,
-        observations,
-      });
-
-      let updateFields: Partial<Lead> = {};
-
-      switch (leadStateId) {
-        case LeadStates.Venta:
-        case LeadStates.NoInteresa:
-        case LeadStates.NoMejorar:
-        case LeadStates.Erroneo:
-          updateFields.leadStateId = leadStateId;
-          break;
-
-        case LeadStates.MorningShift:
-          updateFields.shift = GroupShift.MORNING;
-          updateFields.leadStateId = null;
-          break;
-
-        case LeadStates.EveningShift:
-          updateFields.shift = GroupShift.EVENING;
-          updateFields.leadStateId = null;
-          break;
-
-        case LeadStates.AgendarUsuario:
-          if (!options?.userToAssignId) {
-            throw new Error(`User to assign not specified`);
-          }
-
-          updateFields.leadStateId = leadStateId;
-          await LeadQueuesService.create(lead.id, options.userToAssignId);
-          break;
-
-        case LeadStates.AgendaPersonal:
-          if (!options?.personalAgendaData) {
-            throw new Error(`Personal Agenda Data not specified`);
-          }
-
-          await LeadCallsService.create({
-            ...options.personalAgendaData,
-            subject: `Llamada con ${lead.fullName}`,
-            observations: options.personalAgendaData.subject,
-            userId,
-            leadId: lead.id,
-          });
-
-          updateFields.leadStateId = leadStateId;
-          break;
-
-        case LeadStates.NoContesta:
-          if (lead.leadLogs.length >= 4) {
-            updateFields.leadStateId = LeadStates.Ilocalizable;
-          } else {
-            updateFields.leadStateId = leadStateId;
-          }
-
-          break;
-
-        default:
-          throw new Error(`Lead state '${leadStateId}' is not handled.`);
-      }
-
-      await leadRepository.update(lead.id, updateFields);
-      await userRepository.update(userId, { leadId: null });
-      return lead;
-    } catch (error) {
-      throw error;
+    if (!lead) {
+      return await assignNewLeadToUser(userId);
     }
+
+    await LeadLogsService.create({
+      userId,
+      leadStateId,
+      leadId: lead.id,
+      observations,
+    });
+
+    let updateFields: Partial<Lead> = {};
+
+    switch (leadStateId) {
+      case LeadStates.Venta:
+      case LeadStates.NoInteresa:
+      case LeadStates.NoMejorar:
+      case LeadStates.Erroneo:
+        updateFields.leadStateId = leadStateId;
+        break;
+
+      case LeadStates.MorningShift:
+        updateFields.shift = GroupShift.MORNING;
+        updateFields.leadStateId = null;
+        break;
+
+      case LeadStates.EveningShift:
+        updateFields.shift = GroupShift.EVENING;
+        updateFields.leadStateId = null;
+        break;
+
+      case LeadStates.AgendarUsuario:
+        if (!options?.userToAssignId) {
+          throw new ValidationError(ErrorMessages.Lead.USER_TO_ASSIGN_REQUIRED, {
+            field: "userToAssignId",
+          });
+        }
+
+        updateFields.leadStateId = leadStateId;
+        await LeadQueuesService.create(lead.id, options.userToAssignId);
+        break;
+
+      case LeadStates.AgendaPersonal:
+        if (!options?.personalAgendaData) {
+          throw new ValidationError(ErrorMessages.Lead.PERSONAL_AGENDA_DATA_REQUIRED, {
+            field: "personalAgendaData",
+          });
+        }
+
+        await LeadCallsService.create({
+          ...options.personalAgendaData,
+          subject: `Llamada con ${lead.fullName}`,
+          observations: options.personalAgendaData.subject,
+          userId,
+          leadId: lead.id,
+        });
+
+        updateFields.leadStateId = leadStateId;
+        break;
+
+      case LeadStates.NoContesta:
+        if (lead.leadLogs.length >= 4) {
+          updateFields.leadStateId = LeadStates.Ilocalizable;
+        } else {
+          updateFields.leadStateId = leadStateId;
+        }
+
+        break;
+
+      default:
+        throw new BusinessRuleError(
+          ErrorMessages.Lead.STATE_NOT_HANDLED(leadStateId),
+          "LEAD_STATE_NOT_HANDLED",
+          { leadStateId }
+        );
+    }
+
+    await leadRepository.update(lead.id, updateFields);
+    await userRepository.update(userId, { leadId: null });
+    return lead;
   };
 
   //Private functions
@@ -295,7 +333,11 @@ export module LeadsService {
     const user = await UsersService.get({ id: userId }, { groupUsers: { group: true } });
 
     if (!user || !user.groupUsers || user.groupUsers.length === 0) {
-      throw new Error("User does not belong to any group");
+      throw new BusinessRuleError(
+        ErrorMessages.Lead.USER_NOT_IN_GROUP,
+        "USER_NOT_IN_GROUP",
+        { userId }
+      );
     }
 
     const priorities = user.leadPriorities || [LeadPriority.OLDEST_FIRST];
@@ -311,7 +353,11 @@ export module LeadsService {
     const campaignIds = groupCampaigns.map((groupCampaign) => groupCampaign.campaignId);
 
     if (campaignIds.length === 0) {
-      throw new Error("No campaigns available for the user's groups");
+      throw new BusinessRuleError(
+        ErrorMessages.Lead.NO_CAMPAIGNS_FOR_GROUP,
+        "NO_CAMPAIGNS_FOR_GROUP",
+        { userId, groupIds }
+      );
     }
 
     const leadRepository = dataSource.getRepository(Lead);
@@ -455,7 +501,7 @@ export module LeadsService {
     }
 
     await dataSource.getRepository(User).update(userId, { leadId: null });
-    throw new Error("No available lead to assign");
+    throw new NotFoundError("Lead disponible para asignar");
   };
 
   //Lead Document
@@ -468,26 +514,19 @@ export module LeadsService {
 
     const lead = await leadRepository.findOne({ where: { uuid: leadUuid } });
     if (!lead) {
-      const error = new Error("Lead no encontrado");
-      (error as any).statusCode = 404;
-      throw error;
+      throw new NotFoundError("Lead", leadUuid);
     }
 
-    try {
-      const documentUri = await AwsHelper.uploadGenericCommentDocumentToS3("lead", file);
+    const documentUri = await AwsHelper.uploadGenericCommentDocumentToS3("lead", file);
 
-      const newDocument = leadDocumentRepository.create({
-        leadId: lead.id,
-        documentUri,
-        originalName: file.originalname,
-      });
+    const newDocument = leadDocumentRepository.create({
+      leadId: lead.id,
+      documentUri,
+      originalName: file.originalname,
+    });
 
-      await leadDocumentRepository.save(newDocument);
-      return newDocument;
-    } catch (error) {
-      console.error("Error en el servicio uploadDocument para Lead:", error);
-      throw error;
-    }
+    await leadDocumentRepository.save(newDocument);
+    return newDocument;
   };
 
   export const getDocumentsForLead = async (leadUuid: string): Promise<LeadDocument[]> => {
@@ -498,9 +537,7 @@ export module LeadsService {
     });
 
     if (!leadWithDocuments) {
-      const error = new Error("Lead no encontrado");
-      (error as any).statusCode = 404;
-      throw error;
+      throw new NotFoundError("Lead", leadUuid);
     }
 
     return leadWithDocuments.documents.sort(

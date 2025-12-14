@@ -4,6 +4,14 @@ import { User } from "../models/user.entity";
 import { CreateLiquidationDTO, UpdateLiquidationDTO } from "../dto/liquidation.dto";
 import { CommissionAssignment } from "../models/commission-assignment.entity";
 import { CommissionTiersService } from "./commission-tiers.service";
+import { ValidationService } from "./validation.service";
+import {
+  NotFoundError,
+  ValidationError,
+  ForbiddenError,
+  DuplicateError,
+} from "../errors/app-errors";
+import { ErrorMessages } from "../errors/error-messages";
 
 export module LiquidationsService {
   const liquidationRepository = dataSource.getRepository(Liquidation);
@@ -11,18 +19,29 @@ export module LiquidationsService {
   const userRepository = dataSource.getRepository(User);
 
   export const create = async (dto: CreateLiquidationDTO): Promise<Liquidation> => {
+    // Validar nombre obligatorio
+    ValidationService.notEmpty(dto.name, "name", "Nombre");
+
+    // Validar fecha obligatoria y formato
+    ValidationService.required(dto.date, "date", "Fecha");
+    ValidationService.dateFormat(dto.date, "date", "Fecha");
+
     // Validar tipo obligatorio
     if (!dto.type || !Object.values(LiquidationType).includes(dto.type)) {
-      throw new Error("El tipo de liquidación es obligatorio (INGRESO o GASTO).");
+      throw new ValidationError(ErrorMessages.Liquidation.TYPE_INVALID, {
+        field: "type",
+        allowedValues: Object.values(LiquidationType),
+      });
+    }
+
+    // Validar monto si se proporciona
+    if (dto.amount !== undefined && dto.amount !== null) {
+      ValidationService.nonNegative(dto.amount, "amount", "Monto");
     }
 
     // Si se proporciona userId, verificar que el usuario exista
-    let targetUser = null;
     if (dto.userId !== undefined && dto.userId !== null) {
-      targetUser = await userRepository.findOneBy({ id: dto.userId });
-      if (!targetUser) {
-        throw new Error(`User with ID ${dto.userId} not found. Cannot create liquidation.`);
-      }
+      await ValidationService.userExists(dto.userId, "Liquidación");
     }
 
     const newLiquidation = liquidationRepository.create({
@@ -38,10 +57,9 @@ export module LiquidationsService {
       return await liquidationRepository.save(newLiquidation);
     } catch (error) {
       if (error.code === "ER_DUP_ENTRY") {
-        throw new Error("A liquidation with this name or other unique constraint already exists.");
+        throw new DuplicateError("Liquidación", "nombre", dto.name);
       }
-      console.error("Error saving liquidation:", error);
-      throw new Error("Failed to save liquidation to the database.");
+      throw error;
     }
   };
 
@@ -144,28 +162,46 @@ export module LiquidationsService {
   ): Promise<Liquidation> => {
     const liquidation = await getByUuid(uuid);
     if (!liquidation) {
-      throw new Error("Liquidation not found");
+      throw new NotFoundError("Liquidación", uuid);
     }
 
     // Permission check: Owner or Manager (si no tiene userId asignado, solo managers pueden editar)
     if (liquidation.userId !== null && liquidation.userId !== requestingUserId && !isManager) {
-      throw new Error("Not permission");
+      throw new ForbiddenError("editar esta liquidación", "Solo el propietario o un manager pueden editarla");
     }
     if (liquidation.userId === null && !isManager) {
-      throw new Error("Not permission");
+      throw new ForbiddenError("editar esta liquidación", "Solo los managers pueden editar liquidaciones sin usuario asignado");
     }
 
-    if (dto.name !== undefined) liquidation.name = dto.name;
+    // Validar datos si se proporcionan
+    if (dto.name !== undefined) {
+      ValidationService.notEmpty(dto.name, "name", "Nombre");
+      liquidation.name = dto.name;
+    }
+    if (dto.date !== undefined) {
+      ValidationService.dateFormat(dto.date, "date", "Fecha");
+      liquidation.date = dto.date;
+    }
+    if (dto.type !== undefined) {
+      ValidationService.oneOf(
+        dto.type,
+        Object.values(LiquidationType) as LiquidationType[],
+        "type",
+        "Tipo"
+      );
+      liquidation.type = dto.type;
+    }
+    if (dto.amount !== undefined) {
+      ValidationService.nonNegative(dto.amount, "amount", "Monto");
+      liquidation.amount = dto.amount;
+    }
     if (dto.status !== undefined) liquidation.status = dto.status;
-    if (dto.date !== undefined) liquidation.date = dto.date;
-    if (dto.type !== undefined) liquidation.type = dto.type;
-    if (dto.amount !== undefined) liquidation.amount = dto.amount;
 
     try {
       return await liquidationRepository.save(liquidation);
     } catch (error) {
       if (error.code === "ER_DUP_ENTRY" && dto.name) {
-        throw new Error("Duplicate liquidation name");
+        throw new DuplicateError("Liquidación", "nombre", dto.name);
       }
       throw error;
     }
@@ -178,15 +214,15 @@ export module LiquidationsService {
   ): Promise<void> => {
     const liquidation = await getByUuid(uuid);
     if (!liquidation) {
-      throw new Error("Liquidation not found");
+      throw new NotFoundError("Liquidación", uuid);
     }
 
     // Permission check: Owner or Manager (si no tiene userId asignado, solo managers pueden eliminar)
     if (liquidation.userId !== null && liquidation.userId !== requestingUserId && !isManager) {
-      throw new Error("Not permission");
+      throw new ForbiddenError("eliminar esta liquidación", "Solo el propietario o un manager pueden eliminarla");
     }
     if (liquidation.userId === null && !isManager) {
-      throw new Error("Not permission");
+      throw new ForbiddenError("eliminar esta liquidación", "Solo los managers pueden eliminar liquidaciones sin usuario asignado");
     }
 
     await liquidationRepository.remove(liquidation);
