@@ -96,6 +96,23 @@ export class Contract {
   @Column("date", { nullable: true })
   expiresAt?: Date;
 
+  @Column("boolean", { default: false })
+  isRenewed: boolean;
+
+  @Column({ nullable: true })
+  renewedToId?: number;
+
+  @ManyToOne(() => Contract, { nullable: true })
+  @JoinColumn({ name: "renewedToId" })
+  renewedTo?: Contract;
+
+  @Column({ nullable: true })
+  renewedFromId?: number;
+
+  @ManyToOne(() => Contract, { nullable: true })
+  @JoinColumn({ name: "renewedFromId" })
+  renewedFrom?: Contract;
+
   @CreateDateColumn()
   createdAt: Date;
 

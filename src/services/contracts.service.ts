@@ -437,6 +437,59 @@ export module ContractsService {
     return true;
   };
 
+  export const renewContract = async (
+    contractUuid: string
+  ): Promise<Contract> => {
+    const contractRepository = dataSource.getRepository(Contract);
+
+    const originalContract = await contractRepository.findOne({
+      where: { uuid: contractUuid },
+      relations: { customer: true, user: true },
+    });
+
+    if (!originalContract) {
+      throw new NotFoundError("Contrato", contractUuid);
+    }
+
+    if (originalContract.isRenewed) {
+      throw new BusinessRuleError(
+        "Este contrato ya ha sido renovado",
+        "CONTRACT_ALREADY_RENEWED",
+        { contractId: originalContract.id }
+      );
+    }
+
+    // Crear el nuevo contrato (copia) manteniendo el mismo cliente
+    const { id, uuid, createdAt, updatedAt, customer, user, renewedTo, renewedFrom, ...contractData } = originalContract;
+
+    const newContract = contractRepository.create({
+      ...contractData,
+      isRenewed: false,
+      renewedToId: null,
+      renewedFromId: originalContract.id,
+    });
+
+    const savedNewContract = await contractRepository.save(newContract);
+
+    // Marcar el contrato original como renovado y enlazar al nuevo
+    originalContract.isRenewed = true;
+    originalContract.renewedToId = savedNewContract.id;
+    await contractRepository.save(originalContract);
+
+    // Crear log de renovación
+    await ContractLogsService.create({
+      log: `Contrato renovado. Nuevo contrato creado con ID: ${savedNewContract.uuid}`,
+      contractId: originalContract.id,
+    });
+
+    await ContractLogsService.create({
+      log: `Contrato creado por renovación del contrato anterior: ${originalContract.uuid}`,
+      contractId: savedNewContract.id,
+    });
+
+    return savedNewContract;
+  };
+
   export const cloneContract = async (
     contractUuid: string,
     newUserId: number

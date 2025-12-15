@@ -210,4 +210,14 @@ export module ContractsController {
       next(error);
     }
   };
+
+  export const renewContract = async (req, res, next) => {
+    try {
+      const { uuid } = req.params;
+      const renewedContract = await ContractsService.renewContract(uuid);
+      res.status(201).json(renewedContract);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

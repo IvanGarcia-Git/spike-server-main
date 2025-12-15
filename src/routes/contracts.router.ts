@@ -42,4 +42,10 @@ router.post(
   ContractsController.cloneContract
 );
 
+router.post(
+  "/renew-duplicate/:uuid",
+  authenticateJWT,
+  ContractsController.renewContract
+);
+
 export default router;
