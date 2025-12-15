@@ -60,6 +60,9 @@ export class LeadSheet {
   @Column("boolean", { default: false })
   newCreation: boolean;
 
+  @Column("boolean", { default: false })
+  powerChange: boolean;
+
   @Column({
     type: "varchar"
   })

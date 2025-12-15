@@ -65,6 +65,9 @@ export class Customer {
   @Column("boolean", { default: false })
   newCreation?: boolean;
 
+  @Column("boolean", { default: false })
+  powerChange?: boolean;
+
   @Column({
     type: "varchar", nullable: true,
   })
