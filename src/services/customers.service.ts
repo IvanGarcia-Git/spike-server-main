@@ -8,17 +8,22 @@ import { ErrorMessages } from "../errors/error-messages";
 export module CustomersService {
   /**
    * Valida los datos de un cliente antes de crear/actualizar
+   * @param requireEmail - Si es true, el email es obligatorio (factura electrónica). Default: true
    */
   const validateCustomerData = (
     customerData: Partial<Customer>,
-    isCreate: boolean = true
+    isCreate: boolean = true,
+    requireEmail: boolean = true
   ): void => {
     // Validaciones obligatorias solo en creación
     if (isCreate) {
       ValidationService.required(customerData.name, "name", "Nombre");
       ValidationService.required(customerData.surnames, "surnames", "Apellidos");
       ValidationService.required(customerData.nationalId, "nationalId", "DNI/NIE/NIF");
-      ValidationService.required(customerData.email, "email", "Email");
+      // Email solo obligatorio si es factura electrónica
+      if (requireEmail) {
+        ValidationService.required(customerData.email, "email", "Email");
+      }
       ValidationService.required(customerData.phoneNumber, "phoneNumber", "Teléfono");
       ValidationService.required(customerData.address, "address", "Dirección");
       ValidationService.required(customerData.zipCode, "zipCode", "Código postal");
@@ -58,13 +63,18 @@ export module CustomersService {
     }
   };
 
-  export const create = async (customerData: Partial<Customer>): Promise<Customer> => {
+  export const create = async (
+    customerData: Partial<Customer> & { requireEmail?: boolean }
+  ): Promise<Customer> => {
     const customerRepository = dataSource.getRepository(Customer);
 
-    // Validar datos del cliente
-    validateCustomerData(customerData, true);
+    // Extraer requireEmail del body (default true para factura electrónica)
+    const { requireEmail = true, ...customerFields } = customerData;
 
-    const newCustomer = customerRepository.create(customerData);
+    // Validar datos del cliente
+    validateCustomerData(customerFields, true, requireEmail);
+
+    const newCustomer = customerRepository.create(customerFields);
 
     return await customerRepository.save(newCustomer);
   };
