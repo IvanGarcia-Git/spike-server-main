@@ -389,4 +389,196 @@ export module LeadImportService {
 
     return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
   };
+
+  // ========== Campaign-specific import functions ==========
+
+  const CAMPAIGN_EXPECTED_HEADERS = ["nombre", "email", "telefono", "fuente"];
+  const CAMPAIGN_REQUIRED_HEADERS = ["nombre", "telefono"];
+
+  export const parseExcelForCampaign = (file: Express.Multer.File, campaignName: string): LeadImportRowDTO[] => {
+    try {
+      const workbook = XLSX.read(file.buffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+
+      if (!sheetName) {
+        throw new Error("El archivo Excel no contiene hojas de datos");
+      }
+
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, {
+        header: 1,
+        defval: "",
+      });
+
+      if (jsonData.length < 2) {
+        throw new Error("El archivo Excel debe contener al menos una fila de encabezados y una fila de datos");
+      }
+
+      // Get headers from first row
+      const headers = (jsonData[0] as string[]).map((h) =>
+        String(h).toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      );
+
+      // Validate required headers
+      const missingHeaders = CAMPAIGN_REQUIRED_HEADERS.filter(
+        (required) => !headers.includes(required)
+      );
+
+      if (missingHeaders.length > 0) {
+        throw new Error(
+          `Faltan columnas obligatorias: ${missingHeaders.join(", ")}. ` +
+          `Columnas esperadas: ${CAMPAIGN_EXPECTED_HEADERS.join(", ")}`
+        );
+      }
+
+      // Map headers to indices
+      const headerIndices = {
+        nombre: headers.indexOf("nombre"),
+        email: headers.indexOf("email"),
+        telefono: headers.indexOf("telefono"),
+        fuente: headers.indexOf("fuente"),
+      };
+
+      // Parse data rows
+      const rows: LeadImportRowDTO[] = [];
+      for (let i = 1; i < jsonData.length; i++) {
+        const row = jsonData[i] as any[];
+
+        // Skip completely empty rows
+        if (!row || row.every((cell) => !cell || String(cell).trim() === "")) {
+          continue;
+        }
+
+        const getValue = (index: number): string => {
+          if (index === -1) return "";
+          const value = row[index];
+          return value !== undefined && value !== null ? String(value).trim() : "";
+        };
+
+        rows.push({
+          rowNumber: i + 1, // Excel rows are 1-indexed, +1 for header
+          fullName: getValue(headerIndices.nombre),
+          email: getValue(headerIndices.email),
+          phoneNumber: normalizePhoneNumber(getValue(headerIndices.telefono)),
+          campaignName: campaignName, // Use the campaign name passed as parameter
+          campaignSource: getValue(headerIndices.fuente) || "Excel Import",
+        });
+      }
+
+      if (rows.length === 0) {
+        throw new Error("El archivo Excel no contiene datos para importar");
+      }
+
+      return rows;
+    } catch (error) {
+      if (error.message) {
+        throw error;
+      }
+      throw new Error("Error al procesar el archivo Excel. Verifica que el formato sea correcto.");
+    }
+  };
+
+  export const validateRowsForCampaign = (
+    rows: LeadImportRowDTO[]
+  ): { valid: LeadImportRowDTO[]; errors: LeadImportErrorRowDTO[] } => {
+    const valid: LeadImportRowDTO[] = [];
+    const errors: LeadImportErrorRowDTO[] = [];
+
+    for (const row of rows) {
+      const rowErrors: string[] = [];
+
+      // Validate required fields
+      if (!row.fullName || row.fullName.trim() === "") {
+        rowErrors.push("Nombre es obligatorio");
+      }
+
+      if (!row.phoneNumber || row.phoneNumber.trim() === "") {
+        rowErrors.push("Teléfono es obligatorio");
+      } else {
+        // Validate Spanish phone format
+        const cleanPhone = row.phoneNumber.replace(/^\+34/, "");
+        const phoneRegex = /^[6789]\d{8}$/;
+        if (!phoneRegex.test(cleanPhone)) {
+          rowErrors.push("Formato de teléfono inválido (debe ser 9 dígitos comenzando por 6, 7, 8 o 9)");
+        }
+      }
+
+      // Validate email format if provided
+      if (row.email && row.email.trim() !== "") {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(row.email)) {
+          rowErrors.push("Formato de email inválido");
+        }
+      }
+
+      if (rowErrors.length > 0) {
+        errors.push({
+          rowNumber: row.rowNumber,
+          data: row,
+          errors: rowErrors,
+        });
+      } else {
+        valid.push(row);
+      }
+    }
+
+    return { valid, errors };
+  };
+
+  export const processPreviewForCampaign = async (
+    file: Express.Multer.File,
+    campaignName: string
+  ): Promise<LeadImportPreviewResponseDTO> => {
+    // Parse Excel with campaign name
+    const allRows = parseExcelForCampaign(file, campaignName);
+
+    // Validate rows
+    const { valid: validatedRows, errors: errorRows } = validateRowsForCampaign(allRows);
+
+    // Detect duplicates in validated rows
+    const { clean: cleanRows, duplicates: duplicateRows } = await detectDuplicates(validatedRows);
+
+    // Create session with all rows that can potentially be imported (valid + duplicates)
+    const importableRows = [...cleanRows, ...duplicateRows.map(d => d.data)];
+    const sessionId = createPreviewSession(importableRows);
+
+    return {
+      sessionId,
+      validRows: cleanRows,
+      errorRows,
+      duplicateRows,
+      summary: {
+        total: allRows.length,
+        valid: cleanRows.length,
+        errors: errorRows.length,
+        duplicates: duplicateRows.length,
+      },
+    };
+  };
+
+  export const generateTemplateForCampaign = (campaignName: string): Buffer => {
+    const templateData = [
+      ["nombre", "telefono", "email", "fuente"],
+      ["Juan Pérez García", "612345678", "juan@email.com", "Landing Page"],
+      ["María López", "698765432", "", "Facebook"],
+      ["Carlos Rodríguez", "611222333", "carlos@email.com", ""],
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(templateData);
+
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 25 }, // nombre
+      { wch: 15 }, // telefono
+      { wch: 25 }, // email
+      { wch: 20 }, // fuente
+    ];
+
+    // Sanitize campaign name for sheet name (max 31 chars, no special chars)
+    const sheetName = `Leads ${campaignName}`.slice(0, 31).replace(/[\\\/\*\?\[\]:]/g, "");
+    XLSX.utils.book_append_sheet(workbook, ws, sheetName);
+
+    return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+  };
 }

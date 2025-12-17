@@ -43,7 +43,7 @@ const requireManagerOrAdmin = (req: any, res: Response, next: NextFunction) => {
   next();
 };
 
-// Routes
+// Routes - Global import (requires campaign column in Excel)
 router.post(
   "/preview",
   authenticateJWT,
@@ -63,6 +63,28 @@ router.get(
   "/template",
   authenticateJWT,
   LeadImportController.downloadTemplate
+);
+
+// Routes - Campaign-specific import (no campaign column needed in Excel)
+router.post(
+  "/campaign/:campaignUuid/preview",
+  authenticateJWT,
+  requireManagerOrAdmin,
+  upload.single("file"),
+  LeadImportController.previewForCampaign
+);
+
+router.post(
+  "/campaign/:campaignUuid/confirm",
+  authenticateJWT,
+  requireManagerOrAdmin,
+  LeadImportController.confirmForCampaign
+);
+
+router.get(
+  "/campaign/:campaignUuid/template",
+  authenticateJWT,
+  LeadImportController.downloadTemplateForCampaign
 );
 
 export default router;
