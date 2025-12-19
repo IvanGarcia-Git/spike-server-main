@@ -88,6 +88,13 @@ export module AbsencesService {
     return repo.findOne({ where, relations });
   };
 
+  export const getByUuid = async (
+    uuid: string,
+    relations: FindOptionsRelations<Absence> = {}
+  ): Promise<Absence | null> => {
+    return getOneBy({ uuid }, relations);
+  };
+
   export const update = async (
     uuid: string,
     data: Partial<Omit<Absence, "id" | "uuid" | "createdAt" | "updatedAt" | "user" | "userId">>

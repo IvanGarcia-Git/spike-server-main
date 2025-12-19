@@ -16,6 +16,12 @@ export module PayrollsController {
     res: Response,
     next: NextFunction
   ) => {
+    // RBAC: Only managers can create payrolls
+    const { isManager, groupId } = (req as any).user;
+    if (!isManager) {
+      return res.status(403).json({ message: "No tienes permisos para crear nóminas." });
+    }
+
     const { userId, qty, date, state }: CreatePayrollRequestBody = req.body;
 
     if (userId === undefined || qty === undefined || !date) {
@@ -89,6 +95,8 @@ export module PayrollsController {
     res: Response,
     next: NextFunction
   ) => {
+    // RBAC: Managers can view any user's payrolls, regular users can only view their own
+    const { isManager, userId: requestingUserId } = (req as any).user;
     const userId = req.params.id;
 
     if (!userId) {
@@ -97,6 +105,11 @@ export module PayrollsController {
 
     if (isNaN(Number(userId))) {
       return res.status(400).json({ message: "userId must be a number." });
+    }
+
+    // If not a manager and trying to view someone else's payrolls
+    if (!isManager && Number(userId) !== requestingUserId) {
+      return res.status(403).json({ message: "No tienes permisos para ver las nóminas de otros usuarios." });
     }
 
     try {
@@ -122,6 +135,12 @@ export module PayrollsController {
     res: Response,
     next: NextFunction
   ) => {
+    // RBAC: Only managers can delete payrolls
+    const { isManager } = (req as any).user;
+    if (!isManager) {
+      return res.status(403).json({ message: "No tienes permisos para eliminar nóminas." });
+    }
+
     const uuid = req.params.uuid;
 
     if (!uuid) {
@@ -153,6 +172,12 @@ export module PayrollsController {
     res: Response,
     next: NextFunction
   ) => {
+    // RBAC: Only managers can update payrolls
+    const { isManager } = (req as any).user;
+    if (!isManager) {
+      return res.status(403).json({ message: "No tienes permisos para actualizar nóminas." });
+    }
+
     const uuid = req.params.uuid;
     const { qty, date, state }: Partial<CreatePayrollRequestBody> = req.body;
 

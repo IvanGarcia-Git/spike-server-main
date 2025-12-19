@@ -27,6 +27,9 @@ export module AbsencesController {
     res: Response,
     next: NextFunction
   ) => {
+    // RBAC: Managers can create absences for any user, regular users can only create for themselves
+    const { isManager, userId: requestingUserId } = (req as any).user;
+
     const {
       userId,
       startDate,
@@ -41,6 +44,11 @@ export module AbsencesController {
         .json({
           message: "userId, startDate, endDate, and type are required.",
         });
+    }
+
+    // If not a manager and trying to create absence for someone else
+    if (!isManager && userId !== requestingUserId) {
+      return res.status(403).json({ message: "No tienes permisos para crear ausencias para otros usuarios." });
     }
 
     try {
@@ -69,11 +77,19 @@ export module AbsencesController {
     res: Response,
     next: NextFunction
   ) => {
+    // RBAC: Managers can view any user's absences, regular users can only view their own
+    const { isManager, userId: requestingUserId } = (req as any).user;
+
     const userId = req.params.userId;
     if (!userId || isNaN(Number(userId))) {
       return res
         .status(400)
         .json({ message: "Valid numeric userId parameter is required." });
+    }
+
+    // If not a manager and trying to view someone else's absences
+    if (!isManager && Number(userId) !== requestingUserId) {
+      return res.status(403).json({ message: "No tienes permisos para ver las ausencias de otros usuarios." });
     }
 
     try {
@@ -119,6 +135,9 @@ export module AbsencesController {
     res: Response,
     next: NextFunction
   ) => {
+    // RBAC: Only managers can update absences (especially status)
+    const { isManager, userId: requestingUserId } = (req as any).user;
+
     const uuid = req.params.uuid;
     const dataToUpdate: UpdateAbsenceRequestBody = req.body;
 
@@ -128,6 +147,24 @@ export module AbsencesController {
     }
 
     try {
+      // Get the absence first to check ownership
+      const existingAbsence = await AbsencesService.getByUuid(uuid);
+      if (!existingAbsence) {
+        return res.status(404).json({ message: "Absence not found." });
+      }
+
+      // If not a manager and not the owner, deny access
+      // Also, regular users cannot change status
+      if (!isManager) {
+        if (existingAbsence.userId !== requestingUserId) {
+          return res.status(403).json({ message: "No tienes permisos para actualizar esta ausencia." });
+        }
+        // Regular users cannot change status
+        if (dataToUpdate.status) {
+          return res.status(403).json({ message: "No tienes permisos para cambiar el estado de las ausencias." });
+        }
+      }
+
       const updatedAbsence = await AbsencesService.update(uuid, dataToUpdate);
       res.status(200).json(updatedAbsence);
     } catch (error) {
@@ -144,10 +181,31 @@ export module AbsencesController {
     res: Response,
     next: NextFunction
   ) => {
+    // RBAC: Managers can delete any absence, regular users can only delete their own pending absences
+    const { isManager, userId: requestingUserId } = (req as any).user;
+
     const uuid = req.params.uuid;
     if (!uuid) return res.status(400).json({ message: "UUID is required." });
 
     try {
+      // Get the absence first to check ownership
+      const existingAbsence = await AbsencesService.getByUuid(uuid);
+      if (!existingAbsence) {
+        return res.status(404).json({ message: "Absence not found." });
+      }
+
+      // If not a manager
+      if (!isManager) {
+        // Must be the owner
+        if (existingAbsence.userId !== requestingUserId) {
+          return res.status(403).json({ message: "No tienes permisos para eliminar esta ausencia." });
+        }
+        // Can only delete pending absences
+        if (existingAbsence.status !== "pendiente") {
+          return res.status(403).json({ message: "Solo puedes eliminar ausencias pendientes." });
+        }
+      }
+
       await AbsencesService.remove(uuid);
       res.status(204).send();
     } catch (error) {
