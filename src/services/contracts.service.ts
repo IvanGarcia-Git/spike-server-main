@@ -6,7 +6,7 @@ import { ContractLogsService } from "./contract-logs.service";
 import { ContractState } from "../models/contract-state.entity";
 import { ContractStatesService } from "./contract-states.service";
 import { dataSource } from "../../app-data-source";
-import { FindOptionsRelations, FindOptionsWhere, In } from "typeorm";
+import { FindOptionsRelations, FindOptionsWhere, In, Like, Not } from "typeorm";
 import { UsersService } from "./users.service";
 import { RatesService } from "./rates.service";
 import { UserContractPreferencesService } from "./user-contract-preferences.service";
@@ -535,5 +535,55 @@ export module ContractsService {
     });
 
     return await contractRepository.save(newContract);
+  };
+
+  export const searchByCups = async (
+    userId: number,
+    isManager: boolean,
+    groupId: number,
+    searchTerm: string,
+    excludeLiquidationUuid?: string,
+    limit: number = 20
+  ): Promise<Contract[]> => {
+    const contractRepository = dataSource.getRepository(Contract);
+
+    if (!searchTerm || searchTerm.trim().length < 2) {
+      return [];
+    }
+
+    const visibleUsersIds = await UsersService.getVisibleUserIds(userId, isManager, groupId);
+
+    const queryBuilder = contractRepository
+      .createQueryBuilder("contract")
+      .leftJoinAndSelect("contract.customer", "customer")
+      .leftJoinAndSelect("contract.user", "user")
+      .leftJoinAndSelect("contract.company", "company")
+      .leftJoinAndSelect("contract.rate", "rate")
+      .where("contract.userId IN (:...userIds)", { userIds: visibleUsersIds })
+      .andWhere(
+        "(contract.cups LIKE :search OR customer.name LIKE :search OR customer.surnames LIKE :search OR customer.nationalId LIKE :search)",
+        { search: `%${searchTerm}%` }
+      );
+
+    // Excluir contratos que ya están en la liquidación especificada
+    if (excludeLiquidationUuid) {
+      queryBuilder.andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select("lc.contractId")
+          .from("liquidation_contract", "lc")
+          .innerJoin("liquidation", "l", "l.id = lc.liquidationId")
+          .where("l.uuid = :liquidationUuid")
+          .getQuery();
+        return `contract.id NOT IN ${subQuery}`;
+      }).setParameter("liquidationUuid", excludeLiquidationUuid);
+    }
+
+    const contracts = await queryBuilder
+      .orderBy("contract.createdAt", "DESC")
+      .take(limit)
+      .getMany();
+
+    return contracts;
   };
 }

@@ -24,6 +24,8 @@ router.get("/history/:uuid", authenticateJWT, ContractsController.getHistory);
 
 router.get("/visible/cups", authenticateJWT, ContractsController.getVisibleCups);
 
+router.get("/search/cups", authenticateJWT, ContractsController.searchByCups);
+
 router.get("/", authenticateJWT, ContractsController.getVisibleContracts);
 
 router.patch("/:uuid", authenticateJWT, ContractsController.update);

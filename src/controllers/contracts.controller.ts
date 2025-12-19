@@ -167,6 +167,26 @@ export module ContractsController {
     }
   };
 
+  export const searchByCups = async (req, res, next) => {
+    try {
+      const { userId, isManager, groupId } = req.user;
+      const { search, excludeLiquidation, limit } = req.query;
+
+      const contracts = await ContractsService.searchByCups(
+        userId,
+        isManager,
+        groupId,
+        search as string,
+        excludeLiquidation as string,
+        limit ? parseInt(limit as string) : 20
+      );
+
+      res.json(contracts);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   export const updateBatch = async (req, res, next) => {
     const { contractsUuids, dataToUpdate } = req.body;
     const { userId: updatedByUserId } = req.user;
