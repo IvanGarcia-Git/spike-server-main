@@ -330,7 +330,8 @@ export module UsersService {
     isManager: boolean,
     userUuid: string,
     userDataParam: string | Partial<User>,
-    userImage?: Express.Multer.File
+    userImage?: Express.Multer.File,
+    authenticatedUserUuid?: string
   ): Promise<User> => {
     let userData: Partial<User>;
     if (typeof userDataParam === "string") {
@@ -346,7 +347,9 @@ export module UsersService {
       userData = userDataParam;
     }
 
-    if (!isManager) {
+    // Permitir si es manager O si el usuario está actualizando su propio perfil
+    const isUpdatingSelf = authenticatedUserUuid && authenticatedUserUuid === userUuid;
+    if (!isManager && !isUpdatingSelf) {
       throw new ForbiddenError("actualizar usuarios", ErrorMessages.User.ONLY_MANAGERS_CAN_UPDATE);
     }
 

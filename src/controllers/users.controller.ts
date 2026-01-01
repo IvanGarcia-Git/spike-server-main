@@ -216,13 +216,13 @@ export module UsersController {
   };
 
   export const updateUser = async (req, res, next) => {
-    const { isManager } = req.user;
+    const { isManager, userUuid: authenticatedUserUuid } = req.user;
 
     const { userData, userUuid } = req.body;
     const userImage: Express.Multer.File = req.file;
 
     try {
-      const updatedUser = await UsersService.updateUser(isManager, userUuid, userData, userImage);
+      const updatedUser = await UsersService.updateUser(isManager, userUuid, userData, userImage, authenticatedUserUuid);
 
       res.json(updatedUser);
     } catch (err) {

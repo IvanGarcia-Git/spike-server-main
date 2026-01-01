@@ -1,4 +1,5 @@
 require("dotenv").config();
+import path from "path";
 import campaignsRouter from "./routes/campaigns.router";
 import channelsRouter from "./routes/channels.router";
 import comparativasRouter from "./routes/comparativa.route";
@@ -75,6 +76,9 @@ app.use(
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
+
+// Serve static files from uploads folder (for local storage when S3 is not configured)
+app.use("/files/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 //Webhooks routing
 app.use("/webhook/tiktok", tiktokWebhook);

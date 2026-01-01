@@ -8,12 +8,12 @@ import { ErrorMessages } from "../errors/error-messages";
 export module CustomersService {
   /**
    * Valida los datos de un cliente antes de crear/actualizar
-   * @param requireEmail - Si es true, el email es obligatorio (factura electrónica). Default: true
+   * @param requireEmail - Si es true, el email es obligatorio. Default: false (email opcional)
    */
   const validateCustomerData = (
     customerData: Partial<Customer>,
     isCreate: boolean = true,
-    requireEmail: boolean = true
+    requireEmail: boolean = false
   ): void => {
     // Validaciones obligatorias solo en creación
     if (isCreate) {
@@ -68,8 +68,8 @@ export module CustomersService {
   ): Promise<Customer> => {
     const customerRepository = dataSource.getRepository(Customer);
 
-    // Extraer requireEmail del body (default true para factura electrónica)
-    const { requireEmail = true, ...customerFields } = customerData;
+    // Extraer requireEmail del body (default false - email es opcional)
+    const { requireEmail = false, ...customerFields } = customerData;
 
     // Validar datos del cliente
     validateCustomerData(customerFields, true, requireEmail);
