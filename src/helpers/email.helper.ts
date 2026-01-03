@@ -87,11 +87,11 @@ export namespace EmailHelper {
             <div class="container">
               <h1>Restablecimiento de Contraseña</h1>
               <p>Hola,</p>
-              <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <span class="highlight">Arrakis</span>.</p>
+              <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <span class="highlight">Spikes CRM</span>.</p>
               <p>Si no realizaste esta solicitud, puedes ignorar este correo. De lo contrario, haz clic en el siguiente enlace para continuar:</p>
               <a href="${apiUrl}/reset-password?token=${userUuid}" class="cta-button">Restablecer Contraseña</a>
               <p>Este enlace es válido por un tiempo limitado.</p>
-              <p>Atentamente,<br>El equipo de Arrakis</p>
+              <p>Atentamente,<br>El equipo de Spikes CRM</p>
             </div>
           </body>
           </html>
@@ -129,7 +129,7 @@ export namespace EmailHelper {
   
           <p>Este es un correo automático. Por favor, no respondas directamente.</p>
   
-          <p>Atentamente,<br>El equipo de Arrakis</p>
+          <p>Atentamente,<br>El equipo de Spikes CRM</p>
   
           <p class="footer"><a href="${apiUrl}/notifications-settings">Gestionar mis preferencias de notificación</a></p>
   

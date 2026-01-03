@@ -12,6 +12,7 @@ import {
   DuplicateError,
 } from "../errors/app-errors";
 import { ErrorMessages } from "../errors/error-messages";
+import { EmailService } from "./email.service";
 
 export module LiquidationsService {
   const liquidationRepository = dataSource.getRepository(Liquidation);
@@ -54,7 +55,29 @@ export module LiquidationsService {
     });
 
     try {
-      return await liquidationRepository.save(newLiquidation);
+      const savedLiquidation = await liquidationRepository.save(newLiquidation);
+
+      // Send email notification if user is assigned
+      if (savedLiquidation.userId) {
+        try {
+          const user = await userRepository.findOne({ where: { id: savedLiquidation.userId } });
+          if (user?.email) {
+            await EmailService.sendLiquidationNotificationEmail(
+              user.email,
+              user.name + ' ' + user.firstSurname,
+              savedLiquidation.name,
+              savedLiquidation.amount || 0,
+              0, // Contract count will be 0 on creation
+              savedLiquidation.status,
+              savedLiquidation.uuid
+            );
+          }
+        } catch (emailError) {
+          console.error('Error sending liquidation notification email:', emailError);
+        }
+      }
+
+      return savedLiquidation;
     } catch (error) {
       if (error.code === "ER_DUP_ENTRY") {
         throw new DuplicateError("Liquidación", "nombre", dto.name);
@@ -198,7 +221,29 @@ export module LiquidationsService {
     if (dto.status !== undefined) liquidation.status = dto.status;
 
     try {
-      return await liquidationRepository.save(liquidation);
+      const updatedLiquidation = await liquidationRepository.save(liquidation);
+
+      // Send email notification if status changed and user is assigned
+      if (dto.status !== undefined && updatedLiquidation.userId) {
+        try {
+          const user = await userRepository.findOne({ where: { id: updatedLiquidation.userId } });
+          if (user?.email) {
+            await EmailService.sendLiquidationNotificationEmail(
+              user.email,
+              user.name + ' ' + user.firstSurname,
+              updatedLiquidation.name,
+              updatedLiquidation.amount || 0,
+              updatedLiquidation.liquidationContracts?.length || 0,
+              updatedLiquidation.status,
+              updatedLiquidation.uuid
+            );
+          }
+        } catch (emailError) {
+          console.error('Error sending liquidation status update email:', emailError);
+        }
+      }
+
+      return updatedLiquidation;
     } catch (error) {
       if (error.code === "ER_DUP_ENTRY" && dto.name) {
         throw new DuplicateError("Liquidación", "nombre", dto.name);

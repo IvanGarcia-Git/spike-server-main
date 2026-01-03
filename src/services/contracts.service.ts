@@ -25,6 +25,7 @@ import {
   BusinessRuleError,
 } from "../errors/app-errors";
 import { ErrorMessages } from "../errors/error-messages";
+import { EmailService } from "./email.service";
 
 export module ContractsService {
   export const count = async (): Promise<number> => {
@@ -345,6 +346,24 @@ export module ContractsService {
           newState.name,
           updatedByUser
         );
+
+        // Send email notification for contract state change
+        try {
+          const user = contractToUpdate.user;
+          if (user?.email) {
+            await EmailService.sendContractNotificationEmail(
+              user.email,
+              user.name + ' ' + user.firstSurname,
+              (contractToUpdate.type as unknown) as 'LUZ' | 'GAS' | 'TELEFONIA',
+              contractToUpdate.customer?.name || 'Cliente',
+              newState.name,
+              contractToUpdate.uuid,
+              `El estado de tu contrato ha cambiado de "${oldState?.name || 'Sin estado'}" a "${newState.name}"`
+            );
+          }
+        } catch (emailError) {
+          console.error('Error sending contract state change email:', emailError);
+        }
       }
     }
 

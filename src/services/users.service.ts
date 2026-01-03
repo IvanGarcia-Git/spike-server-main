@@ -7,8 +7,8 @@ import { CreateUserDTO } from "../dto/create-user.dto";
 import { FindOptionsRelations, FindOptionsWhere, Not } from "typeorm";
 import { Roles } from "../enums/roles.enum";
 import { AgentUserVisibleUserService } from "./user-agent-visible-user.service";
-import { sendEmail } from "../helpers/resend.helper";
-import { EmailHelper } from "../helpers/email.helper";
+import { EmailService } from "./email.service";
+
 import { UserDocument } from "../models/user-document.entity";
 import { ValidationService } from "./validation.service";
 import {
@@ -118,7 +118,20 @@ export module UsersService {
       newUser.imageUri = await AwsHelper.uploadImageToS3("user", userImage);
     }
 
-    return await dataSource.getRepository(User).save(newUser);
+    const savedUser = await dataSource.getRepository(User).save(newUser);
+    
+    // Send welcome email to new user
+    try {
+      await EmailService.sendWelcomeEmail(
+        savedUser.email,
+        savedUser.name + ' ' + savedUser.firstSurname
+      );
+    } catch (emailError) {
+      console.error('Error sending welcome email:', emailError);
+      // Don't fail user creation if email fails
+    }
+    
+    return savedUser;
   };
 
   export const login = async (username: string, password: string): Promise<string> => {
@@ -156,9 +169,8 @@ export module UsersService {
     return token;
   };
 
-  export const sendPasswordEmail = async (uuid: string, email: string): Promise<void> => {
-    const html = EmailHelper.passwordResetEmail(uuid);
-    await sendEmail([email], "Restablece tu contraseña", html);
+  export const sendPasswordEmail = async (uuid: string, email: string, userName?: string): Promise<void> => {
+    await EmailService.sendPasswordResetEmail(email, uuid, userName);
   };
 
   export const getProfilePictureUri = async (userId: number): Promise<string> => {
