@@ -1,5 +1,6 @@
 import { dataSource } from "../../app-data-source";
 import { Liquidation, LiquidationStatus, LiquidationType } from "../models/liquidation.entity";
+import { LiquidationContract } from "../models/liquidation-contract.entity";
 import { User } from "../models/user.entity";
 import { CreateLiquidationDTO, UpdateLiquidationDTO } from "../dto/liquidation.dto";
 import { CommissionAssignment } from "../models/commission-assignment.entity";
@@ -16,6 +17,7 @@ import { EmailService } from "./email.service";
 
 export module LiquidationsService {
   const liquidationRepository = dataSource.getRepository(Liquidation);
+  const liquidationContractRepository = dataSource.getRepository(LiquidationContract);
   const commissionAssignmentRepository = dataSource.getRepository(CommissionAssignment);
   const userRepository = dataSource.getRepository(User);
 
@@ -257,10 +259,9 @@ export module LiquidationsService {
     requestingUserId: number,
     isManager: boolean
   ): Promise<void> => {
-    // Cargar liquidación con sus contratos para permitir cascade delete
+    // Cargar liquidación
     const liquidation = await liquidationRepository.findOne({
       where: { uuid },
-      relations: ["liquidationContracts"],
     });
 
     if (!liquidation) {
@@ -275,7 +276,18 @@ export module LiquidationsService {
       throw new ForbiddenError("eliminar esta liquidación", "Solo los managers pueden eliminar liquidaciones sin usuario asignado");
     }
 
-    await liquidationRepository.remove(liquidation);
+    // Usar transacción para eliminar primero los contratos asociados y luego la liquidación
+    await dataSource.transaction(async (transactionalEntityManager) => {
+      // Eliminar todos los liquidationContracts asociados
+      await transactionalEntityManager.delete(LiquidationContract, {
+        liquidationId: liquidation.id,
+      });
+
+      // Eliminar la liquidación
+      await transactionalEntityManager.delete(Liquidation, {
+        id: liquidation.id,
+      });
+    });
   };
 
   const calculateAndAssignTotalCommission = async (liquidation: Liquidation): Promise<void> => {
