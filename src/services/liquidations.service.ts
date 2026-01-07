@@ -257,7 +257,12 @@ export module LiquidationsService {
     requestingUserId: number,
     isManager: boolean
   ): Promise<void> => {
-    const liquidation = await getByUuid(uuid);
+    // Cargar liquidación con sus contratos para permitir cascade delete
+    const liquidation = await liquidationRepository.findOne({
+      where: { uuid },
+      relations: ["liquidationContracts"],
+    });
+
     if (!liquidation) {
       throw new NotFoundError("Liquidación", uuid);
     }
