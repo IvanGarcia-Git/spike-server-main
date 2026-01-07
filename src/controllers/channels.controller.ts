@@ -64,15 +64,16 @@ export module ChannelsController {
 
       const channelImage: Express.Multer.File = req.file;
 
-      const channelData = {
-        name: req.body.name,
-        representativeName: req.body.representativeName,
-        representativePhone: req.body.representativePhone,
-        representativeEmail: req.body.representativeEmail,
-        address: req.body.address,
-        cif: req.body.cif,
-        iban: req.body.iban,
-      };
+      // Construir objeto solo con campos que tienen valor definido
+      const channelData: Record<string, any> = {};
+
+      if (req.body.name !== undefined) channelData.name = req.body.name;
+      if (req.body.representativeName !== undefined) channelData.representativeName = req.body.representativeName;
+      if (req.body.representativePhone !== undefined) channelData.representativePhone = req.body.representativePhone;
+      if (req.body.representativeEmail !== undefined) channelData.representativeEmail = req.body.representativeEmail;
+      if (req.body.address !== undefined) channelData.address = req.body.address;
+      if (req.body.cif !== undefined) channelData.cif = req.body.cif;
+      if (req.body.iban !== undefined) channelData.iban = req.body.iban;
 
       const updatedChannel = await ChannelsService.update(
         channelUuid,
