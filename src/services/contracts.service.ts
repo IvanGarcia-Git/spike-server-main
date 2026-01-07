@@ -347,19 +347,27 @@ export module ContractsService {
           updatedByUser
         );
 
-        // Send email notification for contract state change
+        // Send email notification for contract state change only if user has specific preference
         try {
           const user = contractToUpdate.user;
-          if (user?.email) {
-            await EmailService.sendContractNotificationEmail(
-              user.email,
-              user.name + ' ' + user.firstSurname,
-              (contractToUpdate.type as unknown) as 'LUZ' | 'GAS' | 'TELEFONIA',
-              contractToUpdate.customer?.name || 'Cliente',
-              newState.name,
-              contractToUpdate.uuid,
-              `El estado de tu contrato ha cambiado de "${oldState?.name || 'Sin estado'}" a "${newState.name}"`
+          if (user?.email && user?.notificationsEmailPreferences) {
+            // Check if user has configured email notification for this specific state transition
+            const requiredEmailPreference = `${NotificationPreference.STATE_CHANGE}_${oldState?.name || "Sin estado"}_${newState.name}`;
+            const userHasEmailPreference = user.notificationsEmailPreferences.some(
+              (pref) => pref === requiredEmailPreference
             );
+
+            if (userHasEmailPreference) {
+              await EmailService.sendContractNotificationEmail(
+                user.email,
+                user.name + ' ' + user.firstSurname,
+                (contractToUpdate.type as unknown) as 'LUZ' | 'GAS' | 'TELEFONIA',
+                contractToUpdate.customer?.name || 'Cliente',
+                newState.name,
+                contractToUpdate.uuid,
+                `El estado de tu contrato ha cambiado de "${oldState?.name || 'Sin estado'}" a "${newState.name}"`
+              );
+            }
           }
         } catch (emailError) {
           console.error('Error sending contract state change email:', emailError);
