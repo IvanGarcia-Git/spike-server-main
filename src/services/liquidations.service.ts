@@ -276,17 +276,14 @@ export module LiquidationsService {
       throw new ForbiddenError("eliminar esta liquidación", "Solo los managers pueden eliminar liquidaciones sin usuario asignado");
     }
 
-    // Usar transacción para eliminar primero los contratos asociados y luego la liquidación
-    await dataSource.transaction(async (transactionalEntityManager) => {
-      // Eliminar todos los liquidationContracts asociados
-      await transactionalEntityManager.delete(LiquidationContract, {
-        liquidationId: liquidation.id,
-      });
+    // Primero eliminar todos los liquidationContracts asociados
+    await liquidationContractRepository.delete({
+      liquidationId: liquidation.id,
+    });
 
-      // Eliminar la liquidación
-      await transactionalEntityManager.delete(Liquidation, {
-        id: liquidation.id,
-      });
+    // Luego eliminar la liquidación
+    await liquidationRepository.delete({
+      id: liquidation.id,
     });
   };
 
