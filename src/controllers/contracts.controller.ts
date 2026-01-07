@@ -80,14 +80,23 @@ export module ContractsController {
 
   export const update = async (req, res, next) => {
     try {
-      const { isManager, userId: updatedByUserId } = req.user;
+      const { isManager, userId: updatedByUserId, groupId } = req.user;
       const { uuid } = req.params;
       const contractData = req.body;
 
       const contract = await ContractsService.getOne({ uuid });
 
-      if (!contract.isDraft && !isManager) {
-        res.status(403).send("Only Admin can update a contract that is not in draft mode.");
+      // Solo Supervisores (isManager) o Admin (groupId === 1) pueden actualizar contratos no borrador
+      const canUpdateContract = isManager || groupId === 1;
+
+      if (!contract.isDraft && !canUpdateContract) {
+        res.status(403).send("Solo Supervisores o Admin pueden actualizar un contrato que no es borrador.");
+        return;
+      }
+
+      // Solo Supervisores o Admin pueden cambiar el estado de un contrato
+      if (contractData.contractStateId !== undefined && !canUpdateContract) {
+        res.status(403).send("Solo Supervisores o Admin pueden cambiar el estado de un contrato.");
         return;
       }
 
