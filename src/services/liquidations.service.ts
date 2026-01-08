@@ -125,7 +125,11 @@ export module LiquidationsService {
         if (typeof relationsConfig.liquidationContracts.contract === "object") {
           const contractRelations = relationsConfig.liquidationContracts.contract;
           if (contractRelations.user) relationsToLoad.push("liquidationContracts.contract.user");
-          if (contractRelations.rate) relationsToLoad.push("liquidationContracts.contract.rate");
+          if (contractRelations.rate) {
+            relationsToLoad.push("liquidationContracts.contract.rate");
+            // Also load the channel from rate for fallback display and commission lookup
+            relationsToLoad.push("liquidationContracts.contract.rate.channel");
+          }
           if (contractRelations.customer)
             relationsToLoad.push("liquidationContracts.contract.customer");
           if (contractRelations.company)
@@ -337,6 +341,7 @@ export module LiquidationsService {
     "liquidationContracts.contract",
     "liquidationContracts.contract.channel",
     "liquidationContracts.contract.rate",
+    "liquidationContracts.contract.rate.channel",
     "liquidationContracts.contract.user",
   ];
 
