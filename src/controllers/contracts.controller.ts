@@ -121,13 +121,22 @@ export module ContractsController {
 
   export const deleteContract = async (req, res, next) => {
     try {
-      const { groupId } = req.user;
+      const { isManager, groupId } = req.user;
       const { uuid } = req.params;
+
+      // Solo Supervisores (isManager) o Admin (groupId === 1) pueden eliminar contratos
+      const canDeleteContract = isManager || groupId === SUPER_ADMIN_GROUP_ID;
+
+      if (!canDeleteContract) {
+        res.status(403).send("Solo Supervisores o Admin pueden eliminar contratos.");
+        return;
+      }
 
       const contract = await ContractsService.getOne({ uuid });
 
+      // Solo Super Admin puede borrar contratos no borrador
       if (!contract.isDraft && groupId !== SUPER_ADMIN_GROUP_ID) {
-        res.status(403).send("Only SuperAdmin can delete a contract that is not in draft mode.");
+        res.status(403).send("Solo Super Admin puede eliminar contratos que no están en modo borrador.");
         return;
       }
 
@@ -198,11 +207,28 @@ export module ContractsController {
 
   export const updateBatch = async (req, res, next) => {
     const { contractsUuids, dataToUpdate } = req.body;
-    const { userId: updatedByUserId } = req.user;
+    const { userId: updatedByUserId, isManager, groupId } = req.user;
 
     try {
+      // Solo Supervisores (isManager) o Admin (groupId === 1) pueden usar updateBatch
+      const canUpdateContract = isManager || groupId === SUPER_ADMIN_GROUP_ID;
+
+      // Si se intenta cambiar el estado, verificar permisos
+      if (dataToUpdate.contractStateId !== undefined && !canUpdateContract) {
+        res.status(403).send("Solo Supervisores o Admin pueden cambiar el estado de un contrato.");
+        return;
+      }
+
       const contractsUpdated = [];
       for (const uuid of contractsUuids) {
+        const contract = await ContractsService.getOne({ uuid });
+
+        // Verificar permisos para contratos no borrador
+        if (!contract.isDraft && !canUpdateContract) {
+          res.status(403).send("Solo Supervisores o Admin pueden actualizar un contrato que no es borrador.");
+          return;
+        }
+
         contractsUpdated.push(await ContractsService.update(uuid, dataToUpdate, updatedByUserId));
       }
 
@@ -214,10 +240,27 @@ export module ContractsController {
 
   export const deleteBatch = async (req, res, next) => {
     const { contractsUuids } = req.body;
+    const { isManager, groupId } = req.user;
 
     try {
+      // Solo Supervisores (isManager) o Admin (groupId === 1) pueden eliminar contratos
+      const canDeleteContract = isManager || groupId === SUPER_ADMIN_GROUP_ID;
+
+      if (!canDeleteContract) {
+        res.status(403).send("Solo Supervisores o Admin pueden eliminar contratos.");
+        return;
+      }
+
       const contractsDeleted = [];
       for (const uuid of contractsUuids) {
+        const contract = await ContractsService.getOne({ uuid });
+
+        // Solo Super Admin puede borrar contratos no borrador
+        if (!contract.isDraft && groupId !== SUPER_ADMIN_GROUP_ID) {
+          res.status(403).send("Solo Super Admin puede eliminar contratos que no están en modo borrador.");
+          return;
+        }
+
         contractsDeleted.push(await ContractsService.remove(uuid));
       }
 
