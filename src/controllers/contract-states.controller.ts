@@ -90,4 +90,28 @@ export module ContractStatesController {
       next(error);
     }
   };
+
+  export const updateDisplayOrder = async (req, res, next) => {
+    try {
+      const { groupId } = req.user;
+
+      if (groupId !== SUPER_ADMIN_GROUP_ID) {
+        res.status(403).send("unauthorized");
+        return;
+      }
+
+      const { orderedIds } = req.body;
+
+      if (!orderedIds || !Array.isArray(orderedIds)) {
+        res.status(400).send("orderedIds array is required");
+        return;
+      }
+
+      const updatedStates =
+        await ContractStatesService.updateDisplayOrder(orderedIds);
+      res.json(updatedStates);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

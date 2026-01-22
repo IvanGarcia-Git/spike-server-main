@@ -54,7 +54,7 @@ export module ContractsController {
     try {
       const { userId, isManager, groupId } = req.user;
 
-      const { page = 1, limit = 10 } = req.query;
+      const { page = 1, limit = 10, liquidacion } = req.query;
 
       const contracts = await ContractsService.getVisibleContracts(
         userId,
@@ -69,7 +69,8 @@ export module ContractsController {
           customer: true,
           contractState: true,
           telephonyData: { rates: true },
-        }
+        },
+        liquidacion as string | undefined
       );
 
       res.json(contracts);

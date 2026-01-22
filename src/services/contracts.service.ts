@@ -17,6 +17,8 @@ import { NotificationPreference } from "../models/user.entity";
 import { TelephonyData } from "../models/telephony-data.entity";
 import { TelephonyDataService } from "./telephony-data.service";
 import { ContractType } from "../models/contract.entity";
+import { LiquidationContract } from "../models/liquidation-contract.entity";
+import { Liquidation } from "../models/liquidation.entity";
 import { Customer } from "../models/customer.entity";
 import { ValidationService } from "./validation.service";
 import {
@@ -206,7 +208,8 @@ export module ContractsService {
     isManager: boolean,
     groupId: number,
     pagination: { page: number; limit: number },
-    relations: FindOptionsRelations<Contract> = {}
+    relations: FindOptionsRelations<Contract> = {},
+    liquidacionUuid?: string
   ): Promise<{
     contracts: Contract[];
     columnsOrder: string[];
@@ -223,6 +226,67 @@ export module ContractsService {
 
     const { page, limit } = pagination;
     const skip = (page - 1) * limit;
+
+    // Si hay filtro por liquidación, usar QueryBuilder para hacer el join
+    if (liquidacionUuid) {
+      const liquidationRepository = dataSource.getRepository(Liquidation);
+      const liquidation = await liquidationRepository.findOne({
+        where: { uuid: liquidacionUuid },
+      });
+
+      if (!liquidation) {
+        return {
+          contracts: [],
+          columnsOrder,
+          total: 0,
+          page,
+          lastPage: 0,
+        };
+      }
+
+      const queryBuilder = contractRepository
+        .createQueryBuilder("contract")
+        .innerJoin(
+          LiquidationContract,
+          "lc",
+          "lc.contractId = contract.id AND lc.liquidationId = :liquidationId",
+          { liquidationId: liquidation.id }
+        )
+        .where("contract.userId IN (:...userIds)", { userIds: visibleUsersIds })
+        .orderBy("contract.createdAt", "DESC")
+        .skip(skip)
+        .take(limit);
+
+      // Cargar relaciones manualmente para el QueryBuilder
+      if (relations.user) queryBuilder.leftJoinAndSelect("contract.user", "user");
+      if (relations.rate) {
+        queryBuilder.leftJoinAndSelect("contract.rate", "rate");
+        if (typeof relations.rate === "object" && relations.rate.channel) {
+          queryBuilder.leftJoinAndSelect("rate.channel", "rateChannel");
+        }
+      }
+      if (relations.channel) queryBuilder.leftJoinAndSelect("contract.channel", "channel");
+      if (relations.company) queryBuilder.leftJoinAndSelect("contract.company", "company");
+      if (relations.customer) queryBuilder.leftJoinAndSelect("contract.customer", "customer");
+      if (relations.contractState) queryBuilder.leftJoinAndSelect("contract.contractState", "contractState");
+      if (relations.telephonyData) {
+        queryBuilder.leftJoinAndSelect("contract.telephonyData", "telephonyData");
+        if (typeof relations.telephonyData === "object" && relations.telephonyData.rates) {
+          queryBuilder.leftJoinAndSelect("telephonyData.rates", "telephonyRates");
+        }
+      }
+
+      const [contracts, total] = await queryBuilder.getManyAndCount();
+      const lastPage = Math.ceil(total / limit);
+
+      return {
+        contracts,
+        columnsOrder,
+        total,
+        page,
+        lastPage,
+      };
+    }
 
     const [contracts, total] = await contractRepository.findAndCount({
       where: { userId: In(visibleUsersIds) },
@@ -579,6 +643,11 @@ export module ContractsService {
     }
 
     const visibleUsersIds = await UsersService.getVisibleUserIds(userId, isManager, groupId);
+
+    // Si no hay usuarios visibles, retornar array vacío
+    if (!visibleUsersIds || visibleUsersIds.length === 0) {
+      return [];
+    }
 
     const queryBuilder = contractRepository
       .createQueryBuilder("contract")

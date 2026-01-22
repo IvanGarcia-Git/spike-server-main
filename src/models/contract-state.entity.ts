@@ -27,6 +27,11 @@ export class ContractState {
   })
   default: boolean;
 
+  @Column("int", {
+    default: 0,
+  })
+  displayOrder: number;
+
   @OneToMany(() => Contract, (contract) => contract.contractState)
   contracts: Contract[];
 }

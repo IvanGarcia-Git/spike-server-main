@@ -74,7 +74,30 @@ export module ContractStatesService {
     try {
       const contractStateRepository = dataSource.getRepository(ContractState);
 
-      return await contractStateRepository.find();
+      return await contractStateRepository.find({
+        order: { displayOrder: "ASC", id: "ASC" },
+      });
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  export const updateDisplayOrder = async (
+    orderedIds: number[]
+  ): Promise<ContractState[]> => {
+    try {
+      const contractStateRepository = dataSource.getRepository(ContractState);
+
+      // Actualizar el orden de cada estado según su posición en el array
+      for (let i = 0; i < orderedIds.length; i++) {
+        await contractStateRepository.update(
+          { id: orderedIds[i] },
+          { displayOrder: i }
+        );
+      }
+
+      // Retornar los estados actualizados en orden
+      return await getAll();
     } catch (error) {
       throw error;
     }

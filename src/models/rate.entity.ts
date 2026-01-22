@@ -12,6 +12,12 @@ export enum RateTypes {
   SIX = "6.1",
 }
 
+export enum ServiceType {
+  LUZ = "Luz",
+  GAS = "Gas",
+  TELEFONIA = "Telefonía",
+}
+
 export enum Documentation {
   dni = "DNI",
   cif = "CIF",
@@ -93,6 +99,12 @@ export class Rate {
     type: "varchar", nullable: true,
   })
   type?: RateTypes;
+
+  @Column({
+    type: "varchar",
+    nullable: true,
+  })
+  serviceType?: ServiceType;
 
   @Column("int", { nullable: true })
   channelId?: number;

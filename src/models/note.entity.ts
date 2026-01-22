@@ -22,6 +22,9 @@ export class Note {
   @Column({ type: "varchar", length: 255, nullable: true })
   folderId: string;
 
+  @Column({ type: "varchar", length: 50, default: "blue" })
+  color: string;
+
   @ManyToOne(() => User, user => user.notes)
   @JoinColumn({ name: "userId" })
   user: User;

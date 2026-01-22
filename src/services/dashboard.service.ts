@@ -1396,14 +1396,16 @@ export class DashboardService {
 
       contracts.forEach(contract => {
         if (contract.company) {
-          const key = `${contract.company.name}_${contract.company.type}`;
+          // Usar contract.type en lugar de company.type ya que ahora
+          // las compañías pueden tener tarifas de múltiples tipos
+          const key = `${contract.company.name}_${contract.type}`;
           if (companiesMap.has(key)) {
             const existing = companiesMap.get(key);
             existing.cantidad += 1;
           } else {
             companiesMap.set(key, {
               nombre: contract.company.name,
-              tipo: contract.company.type,
+              tipo: contract.type,
               cantidad: 1
             });
           }
@@ -2345,6 +2347,9 @@ export class DashboardService {
       // Obtener histórico mensual (últimos 6 meses)
       const historicoMensual = await this.getHistoricoMensual(userId, 6);
 
+      // Obtener tiempos de activación por compañía
+      const tiemposActivacion = await this.getTiemposActivacionPorCompania(userId);
+
       return {
         // Datos del usuario
         id: user.id,
@@ -2368,7 +2373,10 @@ export class DashboardService {
         clientesPorTipo,
 
         // Cumplimiento
-        cumplimientoObjetivo
+        cumplimientoObjetivo,
+
+        // Tiempos de activación por compañía
+        tiemposActivacion
       };
     } catch (error) {
       console.error('Error in getUserProfile:', error);

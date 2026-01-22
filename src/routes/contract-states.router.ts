@@ -17,4 +17,10 @@ router.delete(
 
 router.patch("/:id", authenticateJWT, ContractStatesController.update);
 
+router.put(
+  "/display-order",
+  authenticateJWT,
+  ContractStatesController.updateDisplayOrder
+);
+
 export default router;

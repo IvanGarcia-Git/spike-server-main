@@ -44,7 +44,12 @@ export module RatesController {
 
   export const getManyGroupedByCompanyName = async (req, res, next) => {
     try {
-      const rates = await RatesService.getManyGroupedByCompanyName({}, { company: true });
+      const { serviceType } = req.query;
+
+      // Si se especifica serviceType, filtrar por él
+      const where: any = serviceType ? { serviceType } : {};
+
+      const rates = await RatesService.getManyGroupedByCompanyName(where, { company: true });
 
       res.json(rates);
     } catch (error) {

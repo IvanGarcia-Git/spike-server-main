@@ -44,6 +44,22 @@ router.get("/shared", authenticateJWT, FilesController.getShared);
 
 router.get("/recent", authenticateJWT, FilesController.getRecent);
 
+// Rutas de compartir archivos
+router.get("/shares/with-me", authenticateJWT, FilesController.getSharedWithMe);
+router.get("/shares/by-me", authenticateJWT, FilesController.getSharedByMe);
+router.get("/shares/users", authenticateJWT, FilesController.getUsersForSharing);
+router.get("/shares/:fileId", authenticateJWT, FilesController.getFileShares);
+router.post("/shares", authenticateJWT, FilesController.shareFile);
+router.delete("/shares", authenticateJWT, FilesController.unshareFile);
+
+// Rutas de papelera (deben ir antes de /:uuid para evitar conflictos)
+router.get("/trash", authenticateJWT, FilesController.getTrash);
+router.delete("/trash", authenticateJWT, FilesController.emptyTrash);
+router.post("/:uuid/restore", authenticateJWT, FilesController.restore);
+
+// Actualizar archivo (destacado, etc.)
+router.put("/:id", authenticateJWT, FilesController.update);
+
 router.delete("/:uuid", authenticateJWT, FilesController.remove);
 
 router.get("/uploads/*", (req, res) => {

@@ -22,6 +22,7 @@ import { LeadQueue } from "./lead-queue.entity";
 import { Lead } from "./lead.entity";
 import { UserShareLead } from "./user-share-lead.entity";
 import { File } from "./file.entity";
+import { FileShare } from "./file-share.entity";
 import { Folder } from "./folder.entity";
 import { Absence } from "./absence.entity";
 import { TimeEntry } from "./time-entry.entity";
@@ -206,6 +207,12 @@ export class User {
 
   @OneToMany(() => File, (file) => file.ownerUser)
   files: File[];
+
+  @OneToMany(() => FileShare, (fileShare) => fileShare.sharedByUser)
+  sharedFiles: FileShare[];
+
+  @OneToMany(() => FileShare, (fileShare) => fileShare.sharedWithUser)
+  receivedShares: FileShare[];
 
   @OneToMany(() => Notification, (notification) => notification.user)
   notifications: Notification[];

@@ -3,11 +3,14 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   CreateDateColumn,
   Generated,
+  DeleteDateColumn,
 } from "typeorm";
 import { User } from "./user.entity";
 import { Folder } from "./folder.entity";
+import { FileShare } from "./file-share.entity";
 
 @Entity()
 export class File {
@@ -44,8 +47,14 @@ export class File {
   @Column("int")
   ownerUserId: number;
 
+  @Column({ type: "boolean", default: false })
+  destacado: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
+
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date | null;
 
   @ManyToOne(() => User, (user) => user.files, { onDelete: "CASCADE" })
   ownerUser: User;
@@ -55,4 +64,7 @@ export class File {
     onDelete: "CASCADE",
   })
   folder: Folder | null;
+
+  @OneToMany(() => FileShare, (fileShare) => fileShare.file)
+  shares: FileShare[];
 }
