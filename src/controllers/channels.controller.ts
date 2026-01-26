@@ -5,13 +5,8 @@ export module ChannelsController {
   const SUPER_ADMIN_GROUP_ID = 1;
   export const create = async (req, res, next) => {
     try {
-      const { groupId } = req.user;
-
-      if (groupId !== SUPER_ADMIN_GROUP_ID) {
-        res.status(403).send("unauthorized");
-        return;
-      }
-
+      // Permitir a todos los usuarios autenticados crear canales
+      // Esto permite guardar contactos de facturas sin restricción de Super Admin
       const channelData = req.body;
       const channelImage: Express.Multer.File = req.file;
 
