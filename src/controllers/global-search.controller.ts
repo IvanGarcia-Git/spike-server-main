@@ -3,7 +3,7 @@ import { UsersService } from "../services/users.service";
 
 export module GlobalSearchController {
   export const performGlobalSearch = async (req, res, next) => {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, liquidacion } = req.query;
 
     const { isManager, groupId, userId } = req.user;
 
@@ -15,7 +15,8 @@ export module GlobalSearchController {
         contractSearchParams,
         { isManager, groupId, userId },
         Number(page),
-        Number(limit)
+        Number(limit),
+        liquidacion as string | undefined
       );
 
       res.json(contractsFound);

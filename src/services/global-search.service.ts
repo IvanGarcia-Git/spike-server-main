@@ -22,6 +22,8 @@ import { TasksService } from "./tasks.service";
 import { UsersService } from "./users.service";
 import { Rate } from "../models/rate.entity";
 import { AgentUserVisibleUserService } from "./user-agent-visible-user.service";
+import { Liquidation } from "../models/liquidation.entity";
+import { LiquidationContract } from "../models/liquidation-contract.entity";
 
 export module GlobalSearchService {
   export const search = async (
@@ -29,7 +31,8 @@ export module GlobalSearchService {
     contractSearchParams: ContractSearchDTO,
     userData: { userId: number; groupId: number; isManager: boolean },
     page: number = 1,
-    limit: number = 10
+    limit: number = 10,
+    liquidacionUuid?: string
   ): Promise<{
     contracts: Contract[];
     total: number;
@@ -59,7 +62,8 @@ export module GlobalSearchService {
       searchText,
       visibleUsersIds,
       page,
-      limit
+      limit,
+      liquidacionUuid
     );
   };
 
@@ -167,7 +171,8 @@ export module GlobalSearchService {
     searchText: string,
     visibleUsersIds: number[],
     page: number,
-    limit: number
+    limit: number,
+    liquidacionUuid?: string
   ): Promise<{
     contracts: Contract[];
     total: number;
@@ -175,6 +180,19 @@ export module GlobalSearchService {
     lastPage: number;
   }> => {
     const contractRepository: Repository<Contract> = dataSource.getRepository(Contract);
+
+    // Si hay filtro por liquidación, primero obtener el ID de la liquidación
+    let liquidationId: number | null = null;
+    if (liquidacionUuid) {
+      const liquidationRepository = dataSource.getRepository(Liquidation);
+      const liquidation = await liquidationRepository.findOne({
+        where: { uuid: liquidacionUuid },
+      });
+      if (!liquidation) {
+        return { contracts: [], total: 0, page, lastPage: 1 };
+      }
+      liquidationId = liquidation.id;
+    }
 
     let whereCondition: FindOptionsWhere<Contract> = {};
 
@@ -264,6 +282,16 @@ export module GlobalSearchService {
       .leftJoinAndSelect("telephonyData.rates", "allRates")
       .leftJoin("telephonyData.rates", "rates")
       .where(whereCondition);
+
+    // Si hay filtro por liquidación, añadir INNER JOIN para filtrar solo contratos de esa liquidación
+    if (liquidationId) {
+      query.innerJoin(
+        LiquidationContract,
+        "lc",
+        "lc.contractId = contract.id AND lc.liquidationId = :liquidationId",
+        { liquidationId }
+      );
+    }
 
     const powerSubQuery =
       "(SELECT MAX(CAST(power_values.val AS DECIMAL(10, 3))) FROM JSON_TABLE(contract.contractedPowers, '$[*]' COLUMNS (val DECIMAL(10, 3) PATH '$')) as power_values)";
