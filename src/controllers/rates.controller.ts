@@ -46,10 +46,11 @@ export module RatesController {
     try {
       const { serviceType } = req.query;
 
-      // Si se especifica serviceType, filtrar por él
-      const where: any = serviceType ? { serviceType } : {};
-
-      const rates = await RatesService.getManyGroupedByCompanyName(where, { company: true });
+      // Usar el método con fallback que busca por serviceType o por tipo de compañía
+      const rates = await RatesService.getManyGroupedByCompanyNameWithFallback(
+        serviceType as string | undefined,
+        { company: true }
+      );
 
       res.json(rates);
     } catch (error) {

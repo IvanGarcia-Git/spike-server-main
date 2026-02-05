@@ -80,6 +80,60 @@ export module RatesService {
     }
   };
 
+  /**
+   * Obtiene tarifas agrupadas por nombre de compañía, con soporte mejorado
+   * para buscar por serviceType de la tarifa O por tipo de compañía
+   */
+  export const getManyGroupedByCompanyNameWithFallback = async (
+    serviceType: string | undefined,
+    relations: FindOptionsRelations<Rate> = {}
+  ): Promise<{ [companyName: string]: Rate[] }> => {
+    try {
+      const rateRepository = dataSource.getRepository(Rate);
+
+      let rates: Rate[];
+
+      if (serviceType) {
+        // Primero buscar tarifas con serviceType explícito
+        rates = await rateRepository.find({
+          where: { serviceType: serviceType as any },
+          relations,
+        });
+
+        // Si no hay resultados, buscar tarifas de compañías del tipo correspondiente
+        // que no tengan serviceType configurado
+        if (rates.length === 0) {
+          // Buscar todas las tarifas con su compañía
+          const allRates = await rateRepository.find({
+            relations: { ...relations, company: true },
+          });
+
+          // Filtrar por tipo de compañía
+          rates = allRates.filter(
+            (rate) => rate.company?.type === serviceType && !rate.serviceType
+          );
+        }
+      } else {
+        rates = await rateRepository.find({
+          relations,
+        });
+      }
+
+      const groupedRates = rates.reduce((acc, rate) => {
+        const companyName = rate.company?.name || "Unknown";
+        if (!acc[companyName]) {
+          acc[companyName] = [];
+        }
+        acc[companyName].push(rate);
+        return acc;
+      }, {} as { [companyName: string]: Rate[] });
+
+      return groupedRates;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   export const update = async (
     id: number,
     rateData: Partial<Rate>
