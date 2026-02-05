@@ -470,7 +470,11 @@ export module ContractsService {
     }
 
     Object.assign(contractToUpdate, contractData);
+
+    // Eliminar propiedades de relación para evitar conflictos al guardar
     delete contractToUpdate.rate;
+    delete contractToUpdate.user;
+    delete contractToUpdate.customer;
 
     const updatedContract = await contractRepository.save(contractToUpdate);
 
