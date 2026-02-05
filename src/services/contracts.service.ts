@@ -113,10 +113,18 @@ export module ContractsService {
     await validateContractData(contractData, true);
 
     if (!contractData?.contractStateId && !contractData?.isDraft) {
-      const { id: contractStateId } = await ContractStatesService.get({
-        default: true,
-      });
-      contractData.contractStateId = contractStateId;
+      // Intentar obtener el estado por defecto, si no existe, continuar sin asignar estado
+      try {
+        const defaultState = await ContractStatesService.get({
+          default: true,
+        });
+        if (defaultState?.id) {
+          contractData.contractStateId = defaultState.id;
+        }
+      } catch (error) {
+        // Si no existe estado por defecto, el contrato se guarda sin estado asignado
+        console.log('No se encontró estado por defecto, continuando sin asignar estado');
+      }
     }
 
     if (contractData?.rateId) {
@@ -362,10 +370,18 @@ export module ContractsService {
     }
 
     if (contractData?.isDraft === false && !contractToUpdate?.contractStateId) {
-      const { id: contractStateId } = await ContractStatesService.get({
-        default: true,
-      });
-      contractData.contractStateId = contractStateId;
+      // Intentar obtener el estado por defecto, si no existe, continuar sin asignar estado
+      try {
+        const defaultState = await ContractStatesService.get({
+          default: true,
+        });
+        if (defaultState?.id) {
+          contractData.contractStateId = defaultState.id;
+        }
+      } catch (error) {
+        // Si no existe estado por defecto, el contrato se guarda sin estado asignado
+        console.log('No se encontró estado por defecto, continuando sin asignar estado');
+      }
     } else if (contractData.isDraft === true && contractToUpdate.isDraft === false) {
       contractData.contractStateId = null;
     }
