@@ -20,6 +20,7 @@ import { ContractType } from "../models/contract.entity";
 import { LiquidationContract } from "../models/liquidation-contract.entity";
 import { Liquidation } from "../models/liquidation.entity";
 import { Customer } from "../models/customer.entity";
+import { Rate } from "../models/rate.entity";
 import { ValidationService } from "./validation.service";
 import {
   NotFoundError,
@@ -138,19 +139,30 @@ export module ContractsService {
 
     if (contractData.type === ContractType.TELEFONIA) {
       const telephonyDataRepository = dataSource.getRepository(TelephonyData);
+      const rateRepository = dataSource.getRepository(Rate);
       const { telephonyData } = contractData;
 
-      const telephonyDataId = await TelephonyDataService.create(telephonyData);
+      // Crear la entidad TelephonyData sin las rates primero
       const telephonyDataEntity = telephonyDataRepository.create({
-        ...telephonyData,
-        id: telephonyDataId,
+        landlinePhone: telephonyData?.landlinePhone,
+        telephoneLines: telephonyData?.telephoneLines,
+        extraServices: telephonyData?.extraServices,
       });
 
-      await telephonyDataRepository.save(telephonyDataEntity);
+      // Guardar para obtener el ID
+      const savedTelephonyData = await telephonyDataRepository.save(telephonyDataEntity);
+
+      // Manejar la relación ManyToMany con rates si se proporcionan
+      if (telephonyData?.rates && Array.isArray(telephonyData.rates) && telephonyData.rates.length > 0) {
+        const rateIds = telephonyData.rates.map((r: any) => r.id || r);
+        const rates = await rateRepository.findBy({ id: In(rateIds) });
+        savedTelephonyData.rates = rates;
+        await telephonyDataRepository.save(savedTelephonyData);
+      }
 
       newContract = contractRepository.create({
         ...contractData,
-        telephonyData: telephonyDataEntity,
+        telephonyData: savedTelephonyData,
       });
     } else {
       newContract = contractRepository.create(contractData);
@@ -325,9 +337,27 @@ export module ContractsService {
     // Validar datos del contrato (excepto campos que no se pueden cambiar)
     await validateContractData(contractData, false);
 
-    if (contractData.telephonyData) {
-      Object.assign(contractToUpdate.telephonyData, contractData.telephonyData);
+    if (contractData.telephonyData && contractToUpdate.telephonyData) {
+      // Actualizar los campos simples de telephonyData
+      Object.assign(contractToUpdate.telephonyData, {
+        landlinePhone: contractData.telephonyData.landlinePhone,
+        telephoneLines: contractData.telephonyData.telephoneLines,
+        extraServices: contractData.telephonyData.extraServices,
+      });
+
+      // Manejar la relación ManyToMany con rates si se proporcionan
+      if (contractData.telephonyData.rates && Array.isArray(contractData.telephonyData.rates)) {
+        const rateRepository = dataSource.getRepository(Rate);
+        const rateIds = contractData.telephonyData.rates.map((r: any) => r.id || r);
+        const rates = await rateRepository.findBy({ id: In(rateIds) });
+        contractToUpdate.telephonyData.rates = rates;
+      }
+
       await dataSource.getRepository(TelephonyData).save(contractToUpdate.telephonyData);
+      delete contractData.telephonyData;
+    } else if (contractData.telephonyData && !contractToUpdate.telephonyData) {
+      // Si el contrato no tiene telephonyData pero se envió, simplemente ignorarlo
+      // (esto no debería pasar en operación normal, pero evita el error)
       delete contractData.telephonyData;
     }
 
