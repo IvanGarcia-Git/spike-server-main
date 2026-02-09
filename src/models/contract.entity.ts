@@ -43,8 +43,8 @@ export class Contract {
   @Column({ nullable: true })
   companyId?: number;
 
-  @Column()
-  customerId: number;
+  @Column({ nullable: true })
+  customerId?: number;
 
   @Column("varchar", { length: 30, nullable: true })
   cups?: string;
@@ -139,10 +139,11 @@ export class Contract {
   company: Company;
 
   @ManyToOne(() => Customer, (customer) => customer.contracts, {
+    nullable: true,
     onDelete: "CASCADE",
   })
   @JoinColumn({ name: "customerId" })
-  customer: Customer;
+  customer?: Customer;
 
   @ManyToOne(() => Rate, (rate) => rate.contracts)
   @JoinColumn({ name: "rateId" })
