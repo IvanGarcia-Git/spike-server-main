@@ -39,7 +39,7 @@ RUN mkdir -p /app/data /app/uploads && chown -R expressjs:nodejs /app/data /app/
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV DB_PATH=/app/data/spikes.db
+# DB_PATH removed - production uses MySQL via docker-compose env vars
 
 # Switch to non-root user
 USER expressjs
