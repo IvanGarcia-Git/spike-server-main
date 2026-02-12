@@ -32,7 +32,7 @@ export module ContractsController {
   export const get = async (req, res, next) => {
     try {
       const { uuid } = req.params;
-      const contract = await ContractsService.getOne({ uuid }, { comments: { user: true } });
+      const contract = await ContractsService.getOne({ uuid }, { comments: { user: true }, customer: true, user: true, rate: { channel: true }, company: true, contractState: true, channel: true, telephonyData: { rates: true } });
 
       if (contract.comments.length > 0) {
         for (const comment of contract.comments) {
