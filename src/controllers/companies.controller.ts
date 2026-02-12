@@ -82,7 +82,7 @@ export module CompaniesController {
   export const deleteCompany = async (req, res, next) => {
     try {
       const { id } = req.params;
-      const deleted = await CompaniesService.deleteCompany(id);
+      const deleted = await CompaniesService.deleteCompany(Number(id));
 
       res.json({ deleted });
     } catch (error) {
