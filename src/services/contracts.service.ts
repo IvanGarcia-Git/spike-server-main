@@ -491,6 +491,7 @@ export module ContractsService {
     delete contractToUpdate.rate;
     delete contractToUpdate.user;
     delete contractToUpdate.customer;
+    delete contractToUpdate.telephonyData;
 
     const updatedContract = await contractRepository.save(contractToUpdate);
 
