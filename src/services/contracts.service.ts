@@ -399,7 +399,7 @@ export module ContractsService {
         today.setDate(today.getDate() + renewDays);
         contractData.expiresAt = today;
 
-        const contractUrl = `${process.env.API_URL_CONTRACT}/contratos/${contractToUpdate?.customer?.uuid}/${contractToUpdate.uuid}`;
+        const contractUrl = `${process.env.API_URL_CONTRACT}/contratos/${contractToUpdate?.customer?.uuid || '_'}/${contractToUpdate.uuid}`;
 
         await NotificationsService.create(
           {
@@ -446,7 +446,7 @@ export module ContractsService {
           contractId: contractToUpdate.id,
         });
 
-        const contractUrl = `${process.env.API_URL_CONTRACT}/contratos/${contractToUpdate?.customer?.uuid}/${contractToUpdate.uuid}`;
+        const contractUrl = `${process.env.API_URL_CONTRACT}/contratos/${contractToUpdate?.customer?.uuid || '_'}/${contractToUpdate.uuid}`;
 
         await NotificationsService.createStateChangeNotification(
           contractToUpdate.userId,
