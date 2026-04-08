@@ -4,9 +4,11 @@ import { Rate } from "./rate.entity";
 
 // Definimos un enum para el tipo de compañía
 export enum CompanyType {
+  ENERGIA = "Energía",
+  TELEFONIA = "Telefonía",
+  // Legacy values kept for compatibility with existing data
   LUZ = "Luz",
   GAS = "Gas",
-  TELEFONIA = "Telefonía",
 }
 
 @Entity()
