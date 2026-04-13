@@ -1,4 +1,4 @@
-import { Customer } from "../models/customer.entity";
+import { Customer, CustomerCommercialStatus } from "../models/customer.entity";
 import { dataSource } from "../../app-data-source";
 import { FindOptionsRelations, FindOptionsWhere } from "typeorm";
 import { ValidationService } from "./validation.service";
@@ -61,6 +61,28 @@ export module CustomersService {
     if (customerData.surnames) {
       ValidationService.length(customerData.surnames, "surnames", { min: 2, max: 150 }, "Apellidos");
     }
+
+    if (customerData.contactEmail) {
+      ValidationService.email(customerData.contactEmail, "contactEmail", "Email de contacto");
+    }
+
+    if (customerData.contactPhone) {
+      ValidationService.phoneSpain(customerData.contactPhone, "contactPhone", "Teléfono de contacto");
+    }
+
+    if (customerData.contactName) {
+      ValidationService.length(customerData.contactName, "contactName", { min: 2, max: 120 }, "Nombre de contacto");
+    }
+
+    if (
+      customerData.commercialStatus &&
+      !Object.values(CustomerCommercialStatus).includes(customerData.commercialStatus)
+    ) {
+      throw new ValidationError("Estado comercial no válido", {
+        field: "commercialStatus",
+        value: customerData.commercialStatus,
+      });
+    }
   };
 
   export const create = async (
@@ -90,7 +112,12 @@ export module CustomersService {
 
   export const getAll = async (): Promise<Customer[]> => {
     const customerRepository = dataSource.getRepository(Customer);
-    return await customerRepository.find();
+    return await customerRepository.find({
+      order: {
+        name: "ASC",
+        surnames: "ASC",
+      },
+    });
   };
 
   export const update = async (

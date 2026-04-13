@@ -15,6 +15,14 @@ export enum CustomerType {
   B2B = "B2B",
 }
 
+export enum CustomerCommercialStatus {
+  LEAD = "lead",
+  CONTACTADO = "contactado",
+  NEGOCIACION = "negociacion",
+  CLIENTE = "cliente",
+  INACTIVO = "inactivo",
+}
+
 @Entity()
 export class Customer {
   @PrimaryGeneratedColumn()
@@ -78,6 +86,26 @@ export class Customer {
 
   @Column("varchar", { length: 100, nullable: true })
   tradeName?: string;
+
+  @Column("varchar", { length: 120, nullable: true })
+  contactName?: string;
+
+  @Column("varchar", { length: 120, nullable: true })
+  contactRole?: string;
+
+  @Column("varchar", { length: 120, nullable: true })
+  contactEmail?: string;
+
+  @Column("varchar", { length: 20, nullable: true })
+  contactPhone?: string;
+
+  @Column({
+    type: "varchar",
+    length: 30,
+    nullable: true,
+    default: CustomerCommercialStatus.LEAD,
+  })
+  commercialStatus?: CustomerCommercialStatus;
 
   @Column({ nullable: true })
   originId?: number;

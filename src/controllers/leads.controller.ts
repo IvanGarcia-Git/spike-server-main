@@ -54,8 +54,9 @@ export module LeadsController {
       const leadCreated = await LeadsService.create({
         fullName: leadData.fullName,
         phoneNumber: leadData.phoneNumber,
+        email: leadData.email || undefined,
         campaignName: leadData.campaignName,
-        campaignSource: "Meta",
+        campaignSource: leadData.campaignSource || "Meta",
       });
 
       res.status(201).json(leadCreated);
