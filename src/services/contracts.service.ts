@@ -718,8 +718,8 @@ export module ContractsService {
         const subQuery = qb
           .subQuery()
           .select("lc.contractId")
-          .from("liquidation_contract", "lc")
-          .innerJoin("liquidation", "l", "l.id = lc.liquidationId")
+          .from("liquidation_contracts", "lc")
+          .innerJoin("liquidations", "l", "l.id = lc.liquidationId")
           .where("l.uuid = :liquidationUuid")
           .getQuery();
         return `contract.id NOT IN ${subQuery}`;
