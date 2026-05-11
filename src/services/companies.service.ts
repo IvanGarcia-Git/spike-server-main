@@ -16,11 +16,20 @@ export module CompaniesService {
           "company",
           companyImage
         );
+      } else {
+        // El body de la petición no debe poder fijar la clave del logo.
+        delete companyData.imageUri;
       }
 
       const newCompany = companyRepository.create(companyData);
 
-      return await companyRepository.save(newCompany);
+      const savedCompany = await companyRepository.save(newCompany);
+
+      if (savedCompany?.imageUri) {
+        savedCompany.imageUri = AwsHelper.getPresignedUrl(savedCompany.imageUri);
+      }
+
+      return savedCompany;
     } catch (error) {
       throw error;
     }
@@ -92,11 +101,20 @@ export module CompaniesService {
           "company",
           companyImage
         );
+      } else {
+        // Sin imagen nueva: no permitir que el body pise el logo ya guardado.
+        delete companyData.imageUri;
       }
 
       Object.assign(company, companyData);
 
       const updatedCompany = await companyRepository.save(company);
+
+      if (updatedCompany?.imageUri) {
+        updatedCompany.imageUri = AwsHelper.getPresignedUrl(
+          updatedCompany.imageUri
+        );
+      }
 
       return updatedCompany;
     } catch (error) {
