@@ -283,8 +283,13 @@ export module AwsHelper {
 
   export const getPresignedUrl = (keyPath: string, expirationTime = 3600) => {
     if (!isS3Configured()) {
-      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
-      return `${baseUrl}/files/uploads/${keyPath}`;
+      // Ruta relativa: el navegador la resuelve contra el origin del frontend.
+      // El frontend (Next.js) proxea /files/:path* hacia el backend mediante rewrites,
+      // por lo que funciona en cualquier dominio sin necesidad de configurar BASE_URL.
+      if (process.env.BASE_URL) {
+        return `${process.env.BASE_URL}/files/uploads/${keyPath}`;
+      }
+      return `/files/uploads/${keyPath}`;
     }
 
     const s3 = new AWS.S3();
