@@ -73,6 +73,13 @@ export class Lead {
   })
   removedCampaignName?: string;
 
+  // Geographic zone of the lead, used by the auto-assignment rules engine (PRES-018 B2a).
+  @Column("varchar", {
+    length: 100,
+    nullable: true,
+  })
+  zona?: string;
+
   @Column({ nullable: true })
   leadStateId?: number;
 
