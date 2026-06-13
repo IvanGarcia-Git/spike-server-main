@@ -1,7 +1,36 @@
 import { Request, Response, NextFunction } from "express";
 import { ComparativaService } from "../services/comparativa.service";
+import { InvoiceExtractionService } from "../services/invoice-extraction.service";
 
 export module ComparativaController {
+  // PRES-018 B1 — Extrae datos de una factura (imagen/PDF) con IA para pre-rellenar el asistente.
+  export const extractInvoice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req as any).user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      const file = (req as any).file;
+      if (!file) {
+        return res.status(400).json({ error: "No se ha enviado ninguna factura (campo 'file')" });
+      }
+
+      const data = await InvoiceExtractionService.extract(
+        file.buffer,
+        file.mimetype,
+        file.originalname || "factura"
+      );
+
+      res.json(data);
+    } catch (error: any) {
+      if (error?.status) {
+        return res.status(error.status).json({ error: error.message });
+      }
+      next(error);
+    }
+  };
+
   export const create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as any).user?.userId;
