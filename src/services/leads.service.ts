@@ -10,6 +10,7 @@ import { LeadCallsService } from "./lead-calls.service";
 import { LeadStates } from "../enums/lead-states.enum";
 import { LeadLogsService } from "./lead-logs.service";
 import { LeadQueuesService } from "./lead-queues.service";
+import { LeadAssignmentRulesService } from "./lead-assignment-rules.service";
 import { LeadQueue } from "../models/lead-queue.entity";
 import { LeadPriority, User } from "../models/user.entity";
 import { UsersService } from "./users.service";
@@ -110,7 +111,15 @@ export module LeadsService {
       );
     }
 
-    return await leadRepository.save(newLead);
+    const savedLead = await leadRepository.save(newLead);
+
+    // PRES-018 B2a — asignación automática por reglas (no aplica a duplicados).
+    // Nunca lanza: si falla, el lead se crea igual sin asignar.
+    if (savedLead.leadStateId !== LeadStates.Repetido) {
+      await LeadAssignmentRulesService.applyToLead(savedLead.id);
+    }
+
+    return savedLead;
   };
 
   export const update = async (
