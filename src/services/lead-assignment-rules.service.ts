@@ -5,8 +5,10 @@ import { Campaign } from "../models/campaign.entity";
 import { GroupUser } from "../models/group-user.entity";
 import { User } from "../models/user.entity";
 import { LeadQueue } from "../models/lead-queue.entity";
+import { LeadSheet } from "../models/lead-sheet.entity";
 import { LeadQueuesService } from "./lead-queues.service";
 import { LeadStates } from "../enums/lead-states.enum";
+import { zonaFromPostalCode } from "../helpers/spanish-provinces.helper";
 
 /**
  * PRES-018 B2a — Motor de reglas de asignación automática de leads.
@@ -47,6 +49,35 @@ export module LeadAssignmentRulesService {
     if (!rule) throw new Error("LeadAssignmentRule not found");
     await ruleRepo().remove(rule);
     return { message: "LeadAssignmentRule deleted" };
+  };
+
+  /**
+   * Rellena lead.zona de los leads existentes a partir del CP de su ficha.
+   * Idempotente: solo toca leads sin zona previa. Devuelve cuántos actualizó.
+   * (Necesario porque con synchronize:true las migraciones de datos no se ejecutan solas.)
+   */
+  export const backfillZonas = async (): Promise<{ updated: number; scanned: number }> => {
+    const sheets = await dataSource
+      .getRepository(LeadSheet)
+      .createQueryBuilder("s")
+      .select(["s.leadId AS leadId", "s.zipCode AS zipCode"])
+      .where("s.leadId IS NOT NULL AND s.zipCode IS NOT NULL AND s.zipCode <> ''")
+      .getRawMany();
+
+    const leadRepo = dataSource.getRepository(Lead);
+    let updated = 0;
+    for (const row of sheets) {
+      const zona = zonaFromPostalCode(row.zipCode);
+      if (!zona) continue;
+      const res = await leadRepo
+        .createQueryBuilder()
+        .update(Lead)
+        .set({ zona })
+        .where("id = :id AND (zona IS NULL OR zona = '')", { id: row.leadId })
+        .execute();
+      updated += res.affected || 0;
+    }
+    return { updated, scanned: sheets.length };
   };
 
   // ---------- Motor ----------

@@ -7,6 +7,7 @@ const router = Router();
 router.use(authenticateJWT);
 
 router.get("/", LeadAssignmentRulesController.list);
+router.post("/backfill-zonas", LeadAssignmentRulesController.backfillZonas);
 router.post("/", LeadAssignmentRulesController.create);
 router.put("/:uuid", LeadAssignmentRulesController.update);
 router.delete("/:uuid", LeadAssignmentRulesController.remove);

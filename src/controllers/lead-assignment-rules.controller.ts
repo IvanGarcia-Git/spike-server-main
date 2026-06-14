@@ -43,6 +43,16 @@ export module LeadAssignmentRulesController {
     }
   };
 
+  // Acción puntual: deriva la zona de los leads existentes desde el CP de su ficha.
+  export const backfillZonas = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!canManage(req)) return res.status(403).json({ error: "only-admin-or-manager" });
+      res.json(await LeadAssignmentRulesService.backfillZonas());
+    } catch (error) {
+      next(error);
+    }
+  };
+
   export const remove = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       if (!canManage(req)) return res.status(403).json({ error: "only-admin-or-manager" });
