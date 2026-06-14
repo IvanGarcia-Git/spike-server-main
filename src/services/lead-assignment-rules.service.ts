@@ -119,9 +119,10 @@ export module LeadAssignmentRulesService {
     if (ids.length === 0) return null;
 
     if (rule.assignMode === AssignMode.ROUND_ROBIN) {
-      const next = ids.find((id) => id > rule.roundRobinCursor);
-      const chosen = next ?? ids[0];
-      // Persistimos el cursor para la siguiente rotación.
+      // Cursor por posición (no por "id mayor que"): robusto ante altas/bajas de
+      // miembros. Si el cursor ya no está en el grupo, indexOf=-1 → empieza en ids[0].
+      const idx = ids.indexOf(rule.roundRobinCursor);
+      const chosen = ids[(idx + 1) % ids.length];
       await ruleRepo().update({ id: rule.id }, { roundRobinCursor: chosen });
       return chosen;
     }
@@ -151,7 +152,10 @@ export module LeadAssignmentRulesService {
       if (!matches(rule, lead, campaign)) continue;
 
       if (rule.assignMode === AssignMode.DIRECT) {
-        return rule.targetUserId ?? null;
+        // Si una regla directa está mal configurada (sin agente), no bloqueamos las
+        // reglas siguientes: seguimos evaluando.
+        if (rule.targetUserId) return rule.targetUserId;
+        continue;
       }
       const fromGroup = await pickFromGroup(rule);
       if (fromGroup) return fromGroup;
@@ -171,9 +175,11 @@ export module LeadAssignmentRulesService {
       const lead = await leadRepo.findOne({ where: { id: leadId } });
       if (!lead) return null;
 
-      // No reasignar si ya está encolado.
+      // No reasignar si ya está encolado o si ya es el lead activo de algún agente.
       const existing = await dataSource.getRepository(LeadQueue).findOne({ where: { leadId } });
       if (existing) return null;
+      const alreadyAssigned = await dataSource.getRepository(User).findOne({ where: { leadId } });
+      if (alreadyAssigned) return null;
 
       const userId = await resolveAssignee(lead);
       if (!userId) return null;

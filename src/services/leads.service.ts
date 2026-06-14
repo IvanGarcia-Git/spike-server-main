@@ -350,7 +350,18 @@ export module LeadsService {
       );
     }
 
-    const priorities = user.leadPriorities || [LeadPriority.OLDEST_FIRST];
+    const configuredPriorities =
+      user.leadPriorities && user.leadPriorities.length > 0
+        ? user.leadPriorities
+        : [LeadPriority.OLDEST_FIRST];
+
+    // PRES-018 B2a: un lead encolado (asignación manual o automática por reglas) está
+    // marcado AgendarUsuario y sale del pool general, por lo que SOLO se recupera vía
+    // FROM_QUEUE. Garantizamos que esa prioridad se evalúe siempre (la primera) aunque el
+    // agente no la tenga configurada, para que ningún lead asignado quede inaccesible.
+    const priorities = configuredPriorities.includes(LeadPriority.FROM_QUEUE)
+      ? configuredPriorities
+      : [LeadPriority.FROM_QUEUE, ...configuredPriorities];
 
     const groups = user.groupUsers.map((groupUser) => groupUser.group);
     const groupIds = groups.map((group) => group.id);

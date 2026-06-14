@@ -3,15 +3,18 @@ import { FindOptionsRelations, FindOptionsWhere } from "typeorm";
 import { LeadSheet } from "../models/lead-sheet.entity";
 import { Lead } from "../models/lead.entity";
 import { zonaFromPostalCode } from "../helpers/spanish-provinces.helper";
+import { LeadAssignmentRulesService } from "./lead-assignment-rules.service";
 
 export module LeadSheetsService {
   // PRES-018 B2a — mantiene la zona del lead derivada del CP de su ficha.
-  const syncLeadZona = async (leadSheet: LeadSheet): Promise<void> => {
-    if (!leadSheet?.leadId) return;
+  // Devuelve true si se derivó (y guardó) una zona.
+  const syncLeadZona = async (leadSheet: LeadSheet): Promise<boolean> => {
+    if (!leadSheet?.leadId) return false;
     const zona = zonaFromPostalCode(leadSheet.zipCode);
-    if (!zona) return;
+    if (!zona) return false;
     const leadRepository = dataSource.getRepository(Lead);
     await leadRepository.update({ id: leadSheet.leadId }, { zona });
+    return true;
   };
 
   export const create = async (
@@ -23,7 +26,12 @@ export module LeadSheetsService {
       const leadSheet = leadSheetRepository.create(leadSheetData);
 
       const saved = await leadSheetRepository.save(leadSheet);
-      await syncLeadZona(saved);
+      const zonaSet = await syncLeadZona(saved);
+      // Ahora que conocemos la zona, intentamos asignar por reglas (zona/sector/…).
+      // applyToLead es idempotente y no toca leads ya encolados o en curso.
+      if (zonaSet && saved.leadId) {
+        await LeadAssignmentRulesService.applyToLead(saved.leadId);
+      }
       return saved;
     } catch (error) {
       throw error;

@@ -16,6 +16,20 @@ const upload = multer({
   },
 });
 
+// Envuelve multer para devolver 400 (formato/tamaño) en vez de un 500 opaco.
+const uploadInvoice = (req: any, res: any, next: any) => {
+  upload.single("file")(req, res, (err: any) => {
+    if (err) {
+      const msg =
+        err?.code === "LIMIT_FILE_SIZE"
+          ? "La factura supera el tamaño máximo (15MB)"
+          : err?.message || "Archivo no válido";
+      return res.status(400).json({ error: msg });
+    }
+    next();
+  });
+};
+
 // All routes require authentication
 router.use(authenticateJWT);
 
@@ -26,7 +40,7 @@ router.get("/:id", ComparativaController.findById);
 router.get("/uuid/:uuid", ComparativaController.findByUuid);
 
 // POST routes
-router.post("/extract-invoice", upload.single("file"), ComparativaController.extractInvoice);
+router.post("/extract-invoice", uploadInvoice, ComparativaController.extractInvoice);
 router.post("/", ComparativaController.create);
 
 // PUT routes

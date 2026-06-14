@@ -2,7 +2,7 @@ import { AwsHelper } from "../helpers/aws.helper";
 import { dataSource } from "../../app-data-source";
 import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { User } from "../models/user.entity";
+import { User, LeadPriority } from "../models/user.entity";
 import { CreateUserDTO } from "../dto/create-user.dto";
 import { FindOptionsRelations, FindOptionsWhere, Not } from "typeorm";
 import { Roles } from "../enums/roles.enum";
@@ -659,7 +659,13 @@ export module UsersService {
       throw new NotFoundError("Usuario", userId.toString());
     }
 
-    user.leadPriorities = leadPriorities as any;
+    // Solo persistimos prioridades conocidas: enum LeadPriority o claves de grupo "group<id>".
+    const validValues = new Set<string>(Object.values(LeadPriority));
+    const filtered = (leadPriorities || []).filter(
+      (p) => typeof p === "string" && (validValues.has(p) || /^group\d+$/.test(p))
+    );
+
+    user.leadPriorities = filtered as any;
     await userRepository.save(user);
 
     return { leadPriorities: user.leadPriorities as unknown as string[] };
