@@ -67,7 +67,12 @@ export module LeadSheetsService {
 
       Object.assign(leadSheetToUpdate, leadSheetData);
       const saved = await leadSheetRepository.save(leadSheetToUpdate);
-      await syncLeadZona(saved);
+      const zonaSet = await syncLeadZona(saved);
+      // Misma lógica que en create: si ahora conocemos la zona, intentamos asignar
+      // por reglas (idempotente; no toca leads ya encolados o en curso).
+      if (zonaSet && saved.leadId) {
+        await LeadAssignmentRulesService.applyToLead(saved.leadId);
+      }
       return saved;
     } catch (error) {
       throw error;
