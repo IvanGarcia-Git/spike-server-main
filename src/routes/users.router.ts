@@ -106,4 +106,8 @@ router.delete("/documents/:documentUuid", authenticateJWT, UsersController.delet
 router.get("/issuer-fiscal-data", authenticateJWT, UsersController.getIssuerFiscalData);
 router.patch("/issuer-fiscal-data", authenticateJWT, UsersController.updateIssuerFiscalData);
 
+// PRES-018 B2b — autoservicio de prioridades de leads del propio agente
+router.get("/me/lead-priorities", authenticateJWT, UsersController.getMyLeadPriorities);
+router.patch("/me/lead-priorities", authenticateJWT, UsersController.updateMyLeadPriorities);
+
 export default router;

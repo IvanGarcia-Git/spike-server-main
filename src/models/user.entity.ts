@@ -44,6 +44,11 @@ export enum LeadPriority {
   MORNING_SHIFT = "morning_shift",
   EVENING_SHIFT = "evening_shift",
   NOT_RESPONDING = "not_responding",
+  // PRES-018 B2b — priorizar por tipo de servicio (sector de la campaña)
+  SERVICE_LUZ = "service_luz",
+  SERVICE_GAS = "service_gas",
+  SERVICE_PLACAS = "service_placas",
+  SERVICE_TELEFONIA = "service_telefonia",
 }
 
 export enum NotificationPreference {

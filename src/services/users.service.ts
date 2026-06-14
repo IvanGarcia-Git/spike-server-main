@@ -636,4 +636,32 @@ export module UsersService {
       issuerCountry: user.issuerCountry,
     };
   };
+
+  // PRES-018 B2b — autoservicio: el agente lee/edita SUS propias prioridades de leads.
+  export const getLeadPriorities = async (userId: number) => {
+    const user = await get({ id: userId }, { groupUsers: { group: true } });
+    return {
+      leadPriorities: user.leadPriorities || [],
+      groups: (user.groupUsers || [])
+        .filter((gu) => gu.group)
+        .map((gu) => ({ id: gu.group.id, name: gu.group.name })),
+    };
+  };
+
+  export const updateLeadPriorities = async (
+    userId: number,
+    leadPriorities: string[]
+  ): Promise<{ leadPriorities: string[] }> => {
+    const userRepository = dataSource.getRepository(User);
+    const user = await userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundError("Usuario", userId.toString());
+    }
+
+    user.leadPriorities = leadPriorities as any;
+    await userRepository.save(user);
+
+    return { leadPriorities: user.leadPriorities as unknown as string[] };
+  };
 }

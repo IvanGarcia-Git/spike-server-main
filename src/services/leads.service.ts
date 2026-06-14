@@ -1,6 +1,7 @@
 import { Brackets, FindOptionsRelations, FindOptionsWhere, In } from "typeorm";
 import { AwsHelper } from "../helpers/aws.helper";
 import { CampaignsService } from "./campaigns.service";
+import { CampaignSector } from "../models/campaign.entity";
 import { CallBellHelper } from "../helpers/callbell.helper";
 import { dataSource } from "../../app-data-source";
 import { GroupCampaign } from "../models/group-campaign.entity";
@@ -490,6 +491,24 @@ export module LeadsService {
             })
             .orderBy("lead.updatedAt", "ASC");
           break;
+
+        // PRES-018 B2b — priorizar por tipo de servicio (sector de la campaña)
+        case LeadPriority.SERVICE_LUZ:
+        case LeadPriority.SERVICE_GAS:
+        case LeadPriority.SERVICE_PLACAS:
+        case LeadPriority.SERVICE_TELEFONIA: {
+          const sectorByPriority: Record<string, CampaignSector> = {
+            [LeadPriority.SERVICE_LUZ]: CampaignSector.LUZ,
+            [LeadPriority.SERVICE_GAS]: CampaignSector.GAS,
+            [LeadPriority.SERVICE_PLACAS]: CampaignSector.PLACAS,
+            [LeadPriority.SERVICE_TELEFONIA]: CampaignSector.TELEFONIA,
+          };
+          leadQuery = leadQuery
+            .innerJoin("lead.campaign", "campaign")
+            .andWhere("campaign.sector = :sector", { sector: sectorByPriority[priority] })
+            .orderBy("lead.updatedAt", "ASC");
+          break;
+        }
 
         default:
           continue;

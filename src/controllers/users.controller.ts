@@ -344,4 +344,27 @@ export module UsersController {
       next(error);
     }
   };
+
+  // PRES-018 B2b — el agente gestiona SUS propias prioridades de leads.
+  export const getMyLeadPriorities = async (req, res, next) => {
+    try {
+      const { userId } = req.user;
+      res.json(await UsersService.getLeadPriorities(userId));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  export const updateMyLeadPriorities = async (req, res, next) => {
+    try {
+      const { userId } = req.user;
+      const { leadPriorities } = req.body;
+      if (!Array.isArray(leadPriorities)) {
+        return res.status(400).json({ error: "leadPriorities-must-be-an-array" });
+      }
+      res.json(await UsersService.updateLeadPriorities(userId, leadPriorities));
+    } catch (error) {
+      next(error);
+    }
+  };
 }
