@@ -1,8 +1,19 @@
 import { dataSource } from "../../app-data-source";
 import { FindOptionsRelations, FindOptionsWhere } from "typeorm";
 import { LeadSheet } from "../models/lead-sheet.entity";
+import { Lead } from "../models/lead.entity";
+import { zonaFromPostalCode } from "../helpers/spanish-provinces.helper";
 
 export module LeadSheetsService {
+  // PRES-018 B2a — mantiene la zona del lead derivada del CP de su ficha.
+  const syncLeadZona = async (leadSheet: LeadSheet): Promise<void> => {
+    if (!leadSheet?.leadId) return;
+    const zona = zonaFromPostalCode(leadSheet.zipCode);
+    if (!zona) return;
+    const leadRepository = dataSource.getRepository(Lead);
+    await leadRepository.update({ id: leadSheet.leadId }, { zona });
+  };
+
   export const create = async (
     leadSheetData: Partial<LeadSheet>
   ): Promise<LeadSheet> => {
@@ -11,7 +22,9 @@ export module LeadSheetsService {
 
       const leadSheet = leadSheetRepository.create(leadSheetData);
 
-      return await leadSheetRepository.save(leadSheet);
+      const saved = await leadSheetRepository.save(leadSheet);
+      await syncLeadZona(saved);
+      return saved;
     } catch (error) {
       throw error;
     }
@@ -45,7 +58,9 @@ export module LeadSheetsService {
       }
 
       Object.assign(leadSheetToUpdate, leadSheetData);
-      return await leadSheetRepository.save(leadSheetToUpdate);
+      const saved = await leadSheetRepository.save(leadSheetToUpdate);
+      await syncLeadZona(saved);
+      return saved;
     } catch (error) {
       throw error;
     }
