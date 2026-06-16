@@ -83,7 +83,7 @@ export module LeadAssignmentRulesService {
   // ---------- Motor ----------
 
   const matches = (rule: LeadAssignmentRule, lead: Lead, campaign?: Campaign | null): boolean => {
-    if (rule.zona && rule.zona !== lead.zona) return false;
+    // Nota: el criterio "zona" se retiró de la UI (decisión cliente); se ignora en el matching.
     if (rule.sector && rule.sector !== campaign?.sector) return false;
     if (rule.origin && rule.origin !== campaign?.source) return false;
     if (rule.campaignId && rule.campaignId !== lead.campaignId) return false;
