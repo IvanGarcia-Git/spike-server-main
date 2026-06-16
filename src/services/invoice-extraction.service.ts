@@ -38,8 +38,8 @@ Recibes la imagen o PDF de una factura y devuelves EXCLUSIVAMENTE un objeto JSON
 - companyName: comercializadora actual (la empresa que emite la factura). null si no aparece.
 - tariffType: peaje de acceso. Luz normalizado a uno de: "2.0TD","3.0TD","6.1TD". Gas a uno de: "RL.1","RL.2","RL.3". null si no se identifica.
 - cups: código CUPS (empieza por ES). null si no aparece.
-- potencias: SOLO para luz, array de potencias contratadas en kW por periodo, en orden (P1..P6 según peaje). null para gas o si no aparece.
-- energias: SOLO para luz, array de energía consumida en kWh por periodo, mismo orden que potencias. null para gas o si no aparece.
+- potencias: SOLO para luz, array de potencias contratadas en kW por periodo. Número de periodos según el peaje: en "2.0TD" hay 2 potencias (P1 punta, P2 valle); en "3.0TD" y "6.1TD" hay 6 (P1..P6). null para gas o si no aparece.
+- energias: SOLO para luz, array de energía consumida en kWh por periodo. Número de periodos según el peaje: en "2.0TD" hay 3 energías (P1 punta, P2 llano, P3 valle); en "3.0TD" y "6.1TD" hay 6 (P1..P6). Ojo: en 2.0TD el nº de energías (3) NO coincide con el de potencias (2). null para gas o si no aparece.
 - consumo: SOLO para gas, consumo total del periodo en kWh (número). null para luz.
 - numDias: número de días del periodo de facturación (entero). null si no aparece.
 - currentBillAmount: importe total de la factura en euros (número, usa punto decimal). null si no aparece.
