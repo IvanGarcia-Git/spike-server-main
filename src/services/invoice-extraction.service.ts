@@ -23,6 +23,13 @@ export interface ExtractedInvoiceData {
   consumo: number | null; // kWh totales del periodo (gas)
   numDias: number | null; // días del periodo de facturación
   currentBillAmount: number | null; // importe total de la factura (€)
+  // Precios unitarios de la tarifa ACTUAL del cliente (la "tarifa antigua" de la comparativa).
+  // Se extraen de la factura para poder mostrar el desglose de lo que paga hoy.
+  precioPotencia: number[] | null; // SOLO luz: €/kW y día por periodo de potencia
+  precioEnergia: number[] | null; // SOLO luz: €/kWh por periodo de energía
+  precioExcedentes: number | null; // SOLO luz con autoconsumo: €/kWh de excedentes
+  precioFijoGas: number | null; // SOLO gas: término fijo €/día
+  precioEnergiaGas: number | null; // SOLO gas: €/kWh
   /** Campos sobre los que el modelo tiene baja confianza; el frontend los resalta para revisión. */
   lowConfidenceFields: string[];
 }
@@ -43,6 +50,11 @@ Recibes la imagen o PDF de una factura y devuelves EXCLUSIVAMENTE un objeto JSON
 - consumo: SOLO para gas, consumo total del periodo en kWh (número). null para luz.
 - numDias: número de días del periodo de facturación (entero). null si no aparece.
 - currentBillAmount: importe total de la factura en euros (número, usa punto decimal). null si no aparece.
+- precioPotencia: SOLO para luz, array con el precio unitario de POTENCIA que paga hoy el cliente en €/kW y día, un valor por periodo de potencia (mismo nº que "potencias"). Es el precio del término de potencia que figura en la factura. null para gas o si no aparece.
+- precioEnergia: SOLO para luz, array con el precio unitario de ENERGÍA que paga hoy el cliente en €/kWh, un valor por periodo de energía (mismo nº que "energias"). null para gas o si no aparece.
+- precioExcedentes: SOLO para luz con autoconsumo, precio de compensación de excedentes en €/kWh (número). null si no aplica o no aparece.
+- precioFijoGas: SOLO para gas, término fijo que paga hoy el cliente en €/día (número). null para luz o si no aparece.
+- precioEnergiaGas: SOLO para gas, precio unitario de energía que paga hoy el cliente en €/kWh (número). null para luz o si no aparece.
 - lowConfidenceFields: array con los nombres de los campos anteriores cuyo valor sea incierto.
 
 Reglas:
@@ -170,6 +182,11 @@ function normalize(raw: any): ExtractedInvoiceData {
     consumo: toNumber(raw?.consumo),
     numDias: toNumber(raw?.numDias),
     currentBillAmount: toNumber(raw?.currentBillAmount),
+    precioPotencia: toNumberArray(raw?.precioPotencia),
+    precioEnergia: toNumberArray(raw?.precioEnergia),
+    precioExcedentes: toNumber(raw?.precioExcedentes),
+    precioFijoGas: toNumber(raw?.precioFijoGas),
+    precioEnergiaGas: toNumber(raw?.precioEnergiaGas),
     lowConfidenceFields: Array.isArray(raw?.lowConfidenceFields)
       ? raw.lowConfidenceFields.map((s: any) => String(s))
       : [],
