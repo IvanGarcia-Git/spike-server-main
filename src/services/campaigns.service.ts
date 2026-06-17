@@ -90,6 +90,11 @@ export module CampaignsService {
       where: { campaignId },
       skip,
       take,
+      // Orden descendente por fecha de creación: los leads recién creados (manuales o
+      // automáticos) deben aparecer en la primera página. Sin este orden, MySQL devolvía
+      // por id ASC (más antiguos primero) y un lead nuevo caía en la última página,
+      // pareciendo "desaparecer" tras recargar (change request LEADS2).
+      order: { createdAt: "DESC" },
       relations: { user: true },
     });
 
@@ -101,6 +106,7 @@ export module CampaignsService {
     const leadRepository = dataSource.getRepository(Lead);
     const [leads, total] = await leadRepository.findAndCount({
       where: { campaignId: IsNull() },
+      order: { createdAt: "DESC" },
       relations: { user: true },
     });
 
