@@ -18,6 +18,17 @@ export enum ServiceType {
   TELEFONIA = "Telefonía",
 }
 
+// Categoría de peaje (RL) de las tarifas de gas. Permite que las comparativas
+// solo enfrenten tarifas de la misma categoría (RL.1 con RL.1, etc.).
+export enum RlCategory {
+  RL1 = "RL.1",
+  RL2 = "RL.2",
+  RL3 = "RL.3",
+  RL4 = "RL.4",
+  RL5 = "RL.5",
+  RL6 = "RL.6",
+}
+
 export enum Documentation {
   dni = "DNI",
   cif = "CIF",
@@ -105,6 +116,14 @@ export class Rate {
     nullable: true,
   })
   serviceType?: ServiceType;
+
+  // Categoría RL (solo aplica a tarifas de gas). Nullable para no romper
+  // tarifas históricas; las comparativas filtran por este valor.
+  @Column({
+    type: "varchar",
+    nullable: true,
+  })
+  rlCategory?: RlCategory;
 
   @Column("int", { nullable: true })
   channelId?: number;
