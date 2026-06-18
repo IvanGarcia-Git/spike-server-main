@@ -27,18 +27,30 @@ export module ComparativaService {
     }
   };
 
-  export const findAll = async (userId?: number) => {
+  // Listado paginado de comparativas (Comparativas 5). Devuelve { data, total, page, limit }
+  // para que el frontend pueda calcular el número de páginas. Orden: más recientes primero.
+  export const findAll = async (
+    userId?: number,
+    page: number = 1,
+    limit: number = 5
+  ) => {
     try {
+      const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 5;
+      const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+
       const queryBuilder = comparativaRepository.createQueryBuilder("comparativa");
       queryBuilder.leftJoinAndSelect("comparativa.user", "user");
-      
+
       if (userId) {
         queryBuilder.where("comparativa.userId = :userId", { userId });
       }
-      
+
       queryBuilder.orderBy("comparativa.createdAt", "DESC");
-      
-      return await queryBuilder.getMany();
+      queryBuilder.skip((safePage - 1) * safeLimit).take(safeLimit);
+
+      const [data, total] = await queryBuilder.getManyAndCount();
+
+      return { data, total, page: safePage, limit: safeLimit };
     } catch (error) {
       throw error;
     }

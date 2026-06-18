@@ -77,8 +77,10 @@ export module ComparativaController {
   export const findAll = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as any).user?.userId;
-      const comparativas = await ComparativaService.findAll(userId);
-      res.json(comparativas);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 5;
+      const result = await ComparativaService.findAll(userId, page, limit);
+      res.json(result);
     } catch (error: any) {
       next(error);
     }
