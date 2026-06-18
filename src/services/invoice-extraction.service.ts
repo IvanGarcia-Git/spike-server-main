@@ -30,6 +30,11 @@ export interface ExtractedInvoiceData {
   precioExcedentes: number | null; // SOLO luz con autoconsumo: €/kWh de excedentes
   precioFijoGas: number | null; // SOLO gas: término fijo €/día
   precioEnergiaGas: number | null; // SOLO gas: €/kWh
+  // Autoconsumo / placas solares (PRES-018 "Comparativas 6"). Pre-rellenan en el wizard el
+  // checkbox "Tiene placas" (entidad Comparativa.solarPanelActive) y el nº de excedentes
+  // (Comparativa.excedentes), que hoy se marcan a mano.
+  hasSolarPanels: boolean | null; // true si la factura indica autoconsumo/placas/excedentes. null si dudoso.
+  surplusCount: number | null; // kWh de excedentes vertidos a red en el periodo (cantidad, NO precio)
   /** Campos sobre los que el modelo tiene baja confianza; el frontend los resalta para revisión. */
   lowConfidenceFields: string[];
 }
@@ -55,6 +60,8 @@ Recibes la imagen o PDF de una factura y devuelves EXCLUSIVAMENTE un objeto JSON
 - precioExcedentes: SOLO para luz con autoconsumo, precio de compensación de excedentes en €/kWh (número). null si no aplica o no aparece.
 - precioFijoGas: SOLO para gas, término fijo que paga hoy el cliente en €/día (número). null para luz o si no aparece.
 - precioEnergiaGas: SOLO para gas, precio unitario de energía que paga hoy el cliente en €/kWh (número). null para luz o si no aparece.
+- hasSolarPanels: true si la factura indica autoconsumo o placas solares. Búscalo por términos como "autoconsumo", "excedentes", "compensación de excedentes", "energía vertida", "energía exportada" o "instalación fotovoltaica". false solo si está claro que NO hay autoconsumo. null si no se puede determinar.
+- surplusCount: cantidad de excedentes de energía vertidos a la red en kWh durante el periodo (número, es una ENERGÍA en kWh, NO el precio en €/kWh). Búscalo junto a "excedentes", "energía vertida" o "energía exportada". null si no aplica o no aparece. Si das un valor de surplusCount o de precioExcedentes, marca hasSolarPanels como true.
 - lowConfidenceFields: array con los nombres de los campos anteriores cuyo valor sea incierto.
 
 Reglas:
@@ -170,6 +177,16 @@ function normalize(raw: any): ExtractedInvoiceData {
       ? raw.customerType
       : null;
 
+  const precioExcedentes = toNumber(raw?.precioExcedentes);
+  const surplusCount = toNumber(raw?.surplusCount);
+  let hasSolarPanels =
+    typeof raw?.hasSolarPanels === "boolean" ? raw.hasSolarPanels : null;
+  // Si hay excedentes (cantidad en kWh o precio de compensación) deducimos autoconsumo
+  // aunque el modelo no haya marcado el booleano explícitamente.
+  if (hasSolarPanels === null && ((surplusCount ?? 0) > 0 || (precioExcedentes ?? 0) > 0)) {
+    hasSolarPanels = true;
+  }
+
   return {
     comparisonType,
     customerType,
@@ -184,9 +201,11 @@ function normalize(raw: any): ExtractedInvoiceData {
     currentBillAmount: toNumber(raw?.currentBillAmount),
     precioPotencia: toNumberArray(raw?.precioPotencia),
     precioEnergia: toNumberArray(raw?.precioEnergia),
-    precioExcedentes: toNumber(raw?.precioExcedentes),
+    precioExcedentes,
     precioFijoGas: toNumber(raw?.precioFijoGas),
     precioEnergiaGas: toNumber(raw?.precioEnergiaGas),
+    hasSolarPanels,
+    surplusCount,
     lowConfidenceFields: Array.isArray(raw?.lowConfidenceFields)
       ? raw.lowConfidenceFields.map((s: any) => String(s))
       : [],

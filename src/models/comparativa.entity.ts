@@ -53,11 +53,14 @@ export class Comparativa {
   })
   tariffType: string;
 
+  // Autoconsumo / placas solares. El OCR (ExtractedInvoiceData.hasSolarPanels) pre-rellena este
+  // checkbox en el wizard; el agente puede corregirlo antes de guardar (PRES-018 "Comparativas 6").
   @Column("boolean", {
     default: false,
   })
   solarPanelActive: boolean;
 
+  // kWh de excedentes vertidos a red. Lo pre-rellena el OCR (ExtractedInvoiceData.surplusCount).
   @Column("decimal", {
     precision: 10,
     scale: 2,
