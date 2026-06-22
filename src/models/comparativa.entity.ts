@@ -53,6 +53,21 @@ export class Comparativa {
   })
   tariffType: string;
 
+  // CUPS del suministro y comercializadora actual del cliente. Los pre-rellena el OCR
+  // (ExtractedInvoiceData.cups / .companyName) para mostrarlos en la cabecera del PDF.
+  // Nullable: comparativas antiguas no los tienen y el alta manual puede omitirlos.
+  @Column("varchar", {
+    length: 50,
+    nullable: true,
+  })
+  cups?: string;
+
+  @Column("varchar", {
+    length: 120,
+    nullable: true,
+  })
+  comercializadora?: string;
+
   // Autoconsumo / placas solares. El OCR (ExtractedInvoiceData.hasSolarPanels) pre-rellena este
   // checkbox en el wizard; el agente puede corregirlo antes de guardar (PRES-018 "Comparativas 6").
   @Column("boolean", {
