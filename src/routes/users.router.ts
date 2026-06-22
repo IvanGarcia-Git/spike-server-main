@@ -7,15 +7,15 @@ import path from "path";
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 1024 * 1024 * 1024 }, // Límite de 1GB
+  limits: { fileSize: 10 * 1024 * 1024 }, // Límite de 10MB (coherente con frontend de 5MB)
   fileFilter: (req, file, callback) => {
-    const allowedExtensions = [".png", ".jpg", ".jpeg", ".pdf", ".xlsx", ".xls"];
+    const allowedExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
 
     const ext = path.extname(file.originalname).toLowerCase();
 
     if (!allowedExtensions.includes(ext)) {
       return callback(
-        new Error("Solo se permiten imágenes (PNG, JPG), PDF y archivos de Excel (XLS, XLSX)")
+        new Error("Solo se permiten imágenes (PNG, JPG, JPEG, GIF, WebP)")
       );
     }
     callback(null, true);
