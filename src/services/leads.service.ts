@@ -448,7 +448,11 @@ export module LeadsService {
             order: { position: "ASC" },
           });
 
-          if (leadInQueue) {
+          // Un lead_queue puede quedar HUÉRFANO (su lead se borró sin que el
+          // ON DELETE CASCADE lo limpiara — p.ej. en SQLite con FK desactivadas):
+          // entonces `leadInQueue.lead` es null y `leadInQueue.lead.id` reventaba con
+          // "Cannot read properties of null (reading 'id')" → 500 en CADA "Solicitar Lead".
+          if (leadInQueue && leadInQueue.lead) {
             await dataSource.getRepository(User).update(userId, { leadId: leadInQueue.lead.id });
 
             await LeadQueuesService.deleteFirst(userId);
@@ -460,6 +464,12 @@ export module LeadsService {
             }
 
             return leadInQueue.lead;
+          }
+
+          // Entrada de cola huérfana (lead inexistente): elimínala y sigue con el
+          // resto de prioridades para asignar un lead del pool normal.
+          if (leadInQueue && !leadInQueue.lead) {
+            await leadQueueRepository.delete({ id: leadInQueue.id });
           }
           continue;
 
