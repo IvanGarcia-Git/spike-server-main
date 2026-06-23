@@ -5,9 +5,10 @@ import { UsersController } from "../controllers/users.controller";
 import multer from "multer";
 import path from "path";
 
+// Subida de imagen de avatar (userImage): solo imágenes, 10MB (coherente con frontend de 5MB)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // Límite de 10MB (coherente con frontend de 5MB)
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, callback) => {
     const allowedExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
 
@@ -16,6 +17,34 @@ const upload = multer({
     if (!allowedExtensions.includes(ext)) {
       return callback(
         new Error("Solo se permiten imágenes (PNG, JPG, JPEG, GIF, WebP)")
+      );
+    }
+    callback(null, true);
+  },
+});
+
+// Subida de documentos de usuario (document): imágenes + PDF + Excel (mantiene el
+// comportamiento original; el filtro de avatar NO debe restringir este endpoint).
+const documentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB para documentos
+  fileFilter: (req, file, callback) => {
+    const allowedExtensions = [
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".gif",
+      ".webp",
+      ".pdf",
+      ".xlsx",
+      ".xls",
+    ];
+
+    const ext = path.extname(file.originalname).toLowerCase();
+
+    if (!allowedExtensions.includes(ext)) {
+      return callback(
+        new Error("Solo se permiten imágenes, PDF y archivos de Excel (XLS, XLSX)")
       );
     }
     callback(null, true);
@@ -92,7 +121,7 @@ router.delete("/", authenticateJWT, (req, res, next) => {
 router.post(
   "/documents/:userId",
   authenticateJWT,
-  upload.single("document"),
+  documentUpload.single("document"),
   UsersController.uploadDocument
 );
 
