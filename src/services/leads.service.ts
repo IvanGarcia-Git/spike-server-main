@@ -425,11 +425,11 @@ export module LeadsService {
         if (leadToAssign) {
           await dataSource.getRepository(User).update(userId, { leadId: leadToAssign.id });
 
-          try {
-            await CallBellHelper.assignUserToContact(leadToAssign.phoneNumber, user.email);
-          } catch (error) {
-            console.error("Error assigning user to CallBell contact:", error);
-          }
+          // Fire-and-forget: no bloquear la respuesta esperando a CallBell (servicio
+          // externo, ~1-2s). Su resultado no se usa en la respuesta.
+          CallBellHelper.assignUserToContact(leadToAssign.phoneNumber, user.email).catch(
+            (error) => console.error("Error assigning user to CallBell contact:", error)
+          );
 
           return leadToAssign;
         }
@@ -457,11 +457,10 @@ export module LeadsService {
 
             await LeadQueuesService.deleteFirst(userId);
 
-            try {
-              await CallBellHelper.assignUserToContact(leadInQueue.lead.phoneNumber, user.email);
-            } catch (error) {
-              console.error("Error assigning user to CallBell contact:", error);
-            }
+            // Fire-and-forget: no bloquear la respuesta esperando a CallBell.
+            CallBellHelper.assignUserToContact(leadInQueue.lead.phoneNumber, user.email).catch(
+              (error) => console.error("Error assigning user to CallBell contact:", error)
+            );
 
             return leadInQueue.lead;
           }
@@ -539,11 +538,10 @@ export module LeadsService {
       if (leadToAssign) {
         await dataSource.getRepository(User).update(userId, { leadId: leadToAssign.id });
 
-        try {
-          await CallBellHelper.assignUserToContact(leadToAssign.phoneNumber, user.email);
-        } catch (error) {
-          console.error("Error assigning user to CallBell contact:", error);
-        }
+        // Fire-and-forget: no bloquear la respuesta esperando a CallBell.
+        CallBellHelper.assignUserToContact(leadToAssign.phoneNumber, user.email).catch((error) =>
+          console.error("Error assigning user to CallBell contact:", error)
+        );
 
         return leadToAssign;
       }
