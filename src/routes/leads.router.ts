@@ -36,6 +36,13 @@ router.patch("/:leadUuid", authenticateJWT, upload.single("billFile"), LeadsCont
 
 router.patch("/state/:leadUuid", authenticateJWT, LeadsController.changeState);
 
+// Ciclo de vida de leads (PRES-018 B2b - rotación y tipificaciones)
+router.get("/next-available", authenticateJWT, LeadsController.getNextAvailableLead);
+router.post("/:leadUuid/assign", authenticateJWT, LeadsController.assignLeadToAgent);
+router.post("/:leadUuid/tipify", authenticateJWT, LeadsController.tipifyLead);
+router.get("/tipifications", authenticateJWT, LeadsController.getTipifications);
+router.get("/queue-stats", authenticateJWT, LeadsController.getQueueStats);
+
 //Lead Document
 router.post(
   "/:leadUuid/documents",

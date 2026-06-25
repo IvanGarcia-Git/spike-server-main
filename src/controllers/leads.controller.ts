@@ -6,6 +6,7 @@ import {
   LeadAuthorizationService,
   LeadAction,
 } from "../services/lead-authorization.service";
+import { LeadLifecycleService } from "../services/lead-lifecycle.service";
 
 export module LeadsController {
   const SUPER_ADMIN_GROUP_ID = 1;
@@ -346,9 +347,6 @@ export module LeadsController {
   export const getLeadDocumentDownloadUrl = async (req, res, next) => {
     try {
       const { documentUuid } = req.params;
-      // Nota: Para una verificación más estricta, se debería obtener el lead
-      // asociado al documento y verificar permisos. Por ahora mantenemos
-      // la autenticación básica ya que el endpoint requiere authenticateJWT.
       const downloadUrl = await LeadsService.getPresignedUrlForDocument(documentUuid);
 
       if (!downloadUrl) {
@@ -356,6 +354,100 @@ export module LeadsController {
       }
 
       res.status(200).json({ url: downloadUrl });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // === Ciclo de vida de leads (PRES-018 B2b) ===
+
+  export const getNextAvailableLead = async (req, res, next) => {
+    try {
+      const userId = req.user.userId;
+      const lead = await LeadLifecycleService.getNextAvailableLead(userId);
+
+      if (!lead) {
+        return res.status(404).json({
+          success: false,
+          error: { message: "No hay leads disponibles en este momento" },
+        });
+      }
+
+      res.json(lead);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  export const assignLeadToAgent = async (req, res, next) => {
+    try {
+      const { leadUuid } = req.params;
+      const userId = req.user.userId;
+
+      // Obtener lead por UUID para pasar el ID al servicio
+      const lead = await LeadsService.getOne({ uuid: leadUuid });
+      if (!lead) {
+        return res.status(404).json({
+          success: false,
+          error: { message: "Lead no encontrado" },
+        });
+      }
+
+      const assignedLead = await LeadLifecycleService.assignLeadToAgent(lead.id, userId);
+      res.json(assignedLead);
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: { message: error.message },
+      });
+    }
+  };
+
+  export const tipifyLead = async (req, res, next) => {
+    try {
+      const { leadUuid } = req.params;
+      const { tipificationId, observation, whatsappNumber } = req.body;
+      const userId = req.user.userId;
+
+      const lead = await LeadsService.getOne({ uuid: leadUuid });
+      if (!lead) {
+        return res.status(404).json({
+          success: false,
+          error: { message: "Lead no encontrado" },
+        });
+      }
+
+      const updatedLead = await LeadLifecycleService.tipifyLead(
+        lead.id,
+        tipificationId,
+        userId,
+        observation,
+        whatsappNumber
+      );
+
+      res.json(updatedLead);
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: { message: error.message },
+      });
+    }
+  };
+
+  export const getTipifications = async (req, res, next) => {
+    try {
+      const tipifications = await LeadLifecycleService.getAllTipifications();
+      res.json(tipifications);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  export const getQueueStats = async (req, res, next) => {
+    try {
+      const userId = req.user.userId;
+      const stats = await LeadLifecycleService.getQueueStats(userId);
+      res.json(stats);
     } catch (error) {
       next(error);
     }
