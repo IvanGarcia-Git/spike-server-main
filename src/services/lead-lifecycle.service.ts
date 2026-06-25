@@ -2,6 +2,12 @@ import { dataSource } from "../../app-data-source";
 import { Lead, LeadTipificationHistory } from "../models/lead.entity";
 import { Tipification, TipificationCategory, TipificationAction } from "../models/tipification.entity";
 import { User } from "../models/user.entity";
+import { GroupCampaign } from "../models/group-campaign.entity";
+import { LeadQueue } from "../models/lead-queue.entity";
+import { LeadStates } from "../enums/lead-states.enum";
+import { LeadQueuesService } from "./lead-queues.service";
+import { UsersService } from "./users.service";
+import { CallBellHelper } from "../helpers/callbell.helper";
 import { Brackets, In } from "typeorm";
 
 const leadRepository = dataSource.getRepository(Lead);
@@ -10,156 +16,165 @@ const leadTipificationHistoryRepository = dataSource.getRepository(LeadTipificat
 const userRepository = dataSource.getRepository(User);
 
 /**
- * Servicio para la gestión del ciclo de vida de leads:
- * - Rotación circular entre agentes
- * - Motor de prioridad (callbacks > nuevos > reintentos)
- * - Sistema de tipificaciones con acciones automáticas
- * - Trigger de intento 6 (WhatsApp obligatorio)
+ * Servicio del ciclo de vida de leads (sustituye al flujo antiguo de "Solicitar Lead"
+ * + tipificación por leadState):
+ * - Asignación con prioridad: cola manual/automática > callbacks vencidos > nuevos > reintentos
+ * - Rotación entre agentes (un reintento no vuelve al mismo agente que acaba de intentarlo)
+ * - Tipificaciones con acciones automáticas
+ * - Trigger de intento 6 (WhatsApp obligatorio + bloqueo permanente al agente)
+ *
+ * La asignación "actual" del agente se persiste en `user.leadId` (lado propietario de la
+ * relación, igual que el flujo antiguo) — NUNCA vía `lead.user`, que es el lado inverso y
+ * no tiene columna en la tabla `lead`.
  */
 export module LeadLifecycleService {
-  
-  /**
-   * Tiempos de reintento por número de intento (en horas)
-   */
-  const RETRY_HOURS_BY_ATTEMPT: Record<number, number> = {
-    1: 2,   // +2 horas
-    2: 24,  // +1 día
-    3: 48,  // +2 días
-    4: 72,  // +3 días
-    5: 120, // +5 días
+  // Tiempos de reintento por nº de intento alcanzado (en horas): 2h, 1d, 2d, 3d, 5d.
+  const RETRY_HOURS_BY_ATTEMPT: Record<number, number> = { 1: 2, 2: 24, 3: 48, 4: 72, 5: 120 };
+  const MAX_ATTEMPTS = 6;
+
+  // Estados del ciclo de vida (columna `lead.status`).
+  const STATUS = { ACTIVO: "activo", CALLBACK: "callback", RETRY: "retry", MUERTO: "muerto" };
+
+  /** Carga el usuario (con grupos) y las campañas a las que tiene acceso. */
+  const getUserAndCampaigns = async (
+    userId: number
+  ): Promise<{ user: User; campaignIds: number[] }> => {
+    const user = await UsersService.get({ id: userId }, { groupUsers: { group: true } });
+    if (!user || !user.groupUsers || user.groupUsers.length === 0) {
+      throw new Error("El usuario no pertenece a ningún grupo.");
+    }
+    const groupIds = user.groupUsers.map((gu) => gu.group.id);
+    const groupCampaigns = await dataSource
+      .getRepository(GroupCampaign)
+      .find({ where: { groupId: In(groupIds) } });
+    const campaignIds = groupCampaigns.map((gc) => gc.campaignId);
+    if (campaignIds.length === 0) {
+      throw new Error("No hay campañas disponibles para los grupos del usuario.");
+    }
+    return { user, campaignIds };
   };
 
-  const MAX_ATTEMPTS_BEFORE_WHATSAPP = 6;
+  /**
+   * Base de disponibilidad de un lead para la cola:
+   * - dentro de las campañas del agente
+   * - no cerrado (status != muerto) ni bloqueado permanentemente
+   * - sin turno reservado (shift IS NULL)
+   * - "abierto" en el sistema antiguo (leadStateId NULL o NoContesta) — puente sin migración de datos
+   * - no en posesión de NINGÚN agente ahora mismo (user.leadId)
+   */
+  const baseAvailableQuery = (campaignIds: number[]) =>
+    leadRepository
+      .createQueryBuilder("lead")
+      .where("lead.campaignId IN (:...campaignIds)", { campaignIds })
+      .andWhere("lead.status != :muerto", { muerto: STATUS.MUERTO })
+      .andWhere("lead.isPermanentlyAssigned = false")
+      .andWhere("lead.shift IS NULL")
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where("lead.leadStateId IS NULL").orWhere("lead.leadStateId = :noContesta", {
+            noContesta: LeadStates.NoContesta,
+          });
+        })
+      )
+      .andWhere("lead.id NOT IN (SELECT u.leadId FROM user u WHERE u.leadId IS NOT NULL)");
 
   /**
-   * Obtiene el siguiente lead disponible siguiendo la lógica de prioridad:
-   * 1. Callbacks vencidos (next_call_date <= ahora)
-   * 2. Leads nuevos (attempt_count = 0)
-   * 3. Reintentos (ordenados por fecha más antigua)
-   * 
-   * Excluye leads permanentemente asignados a otros agentes
+   * Solicita el siguiente lead para el agente y se lo asigna (user.leadId).
+   * Prioridad: cola (FROM_QUEUE) > callbacks vencidos > nuevos > reintentos.
+   * Devuelve el lead asignado o null si no hay disponibles.
    */
-  export const getNextAvailableLead = async (userId: number): Promise<Lead | null> => {
+  export const requestNextLead = async (userId: number): Promise<Lead | null> => {
+    const { user, campaignIds } = await getUserAndCampaigns(userId);
     const now = new Date();
 
-    // 1. Primero buscar callbacks vencidos
-    let lead = await findCallbackLeads(userId, now);
-    if (lead) return lead;
+    // 0. Cola manual/automática (agendado a usuario + reglas de asignación PRES-018 B2a).
+    const leadQueueRepository = dataSource.getRepository(LeadQueue);
+    const inQueue = await leadQueueRepository.findOne({
+      where: { userId },
+      relations: { lead: true },
+      order: { position: "ASC" },
+    });
+    if (inQueue && inQueue.lead) {
+      await assignToAgent(inQueue.lead.id, userId);
+      await LeadQueuesService.deleteFirst(userId);
+      fireCallbell(inQueue.lead.phoneNumber, user.email);
+      return reload(inQueue.lead.id);
+    }
+    if (inQueue && !inQueue.lead) {
+      // Entrada huérfana (lead borrado): límpiala y sigue.
+      await leadQueueRepository.delete({ id: inQueue.id });
+    }
 
-    // 2. Luego leads nuevos (sin trabajar)
-    lead = await findNewLeads(userId);
-    if (lead) return lead;
-
-    // 3. Finalmente reintentos
-    lead = await findRetryLeads(userId);
-    return lead;
-  };
-
-  /**
-   * Busca leads con callbacks vencidos disponibles para un agente
-   */
-  const findCallbackLeads = async (userId: number, now: Date): Promise<Lead | null> => {
-    return await leadRepository
-      .createQueryBuilder("lead")
-      .leftJoin("lead.user", "user")
-      .where("lead.status = :status", { status: "callback" })
+    // 1. Callbacks vencidos (máxima prioridad tras la cola).
+    let lead = await baseAvailableQuery(campaignIds)
+      .andWhere("lead.status = :s", { s: STATUS.CALLBACK })
       .andWhere("lead.nextCallDate <= :now", { now })
-      .andWhere(new Brackets((qb) => {
-        qb.where("lead.user IS NULL")
-          .orWhere("lead.user.id = :userId", { userId })
-          .orWhere("lead.isPermanentlyAssigned = true AND lead.user.id = :userId", { userId });
-      }))
       .orderBy("lead.nextCallDate", "ASC")
       .getOne();
-  };
 
-  /**
-   * Busca leads nuevos (sin intentar) disponibles
-   */
-  const findNewLeads = async (userId: number): Promise<Lead | null> => {
-    return await leadRepository
-      .createQueryBuilder("lead")
-      .leftJoin("lead.user", "user")
-      .where("lead.attemptCount = 0")
-      .andWhere("lead.status = :status", { status: "activo" })
-      .andWhere(new Brackets((qb) => {
-        qb.where("lead.user IS NULL")
-          .orWhere("lead.isPermanentlyAssigned = true AND lead.user.id = :userId", { userId });
-      }))
-      .orderBy("lead.createdAt", "ASC")
-      .getOne();
-  };
-
-  /**
-   * Busca leads para reintento, excluyendo agentes que ya lo intentaron recientemente
-   */
-  const findRetryLeads = async (userId: number): Promise<Lead | null> => {
-    const now = new Date();
-
-    // Obtener IDs de leads que este agente ya intentó en los últimos N intentos
-    // para evitar que vuelvan al mismo agente consecutivamente
-    const leadsWithRecentAttemptByUser = await leadTipificationHistoryRepository
-      .createQueryBuilder("history")
-      .select("history.leadId")
-      .where("history.userId = :userId", { userId })
-      .orderBy("history.createdAt", "DESC")
-      .limit(100)
-      .getRawMany();
-
-    const excludedLeadIds = leadsWithRecentAttemptByUser.map((r: any) => r.leadId);
-
-    const query = leadRepository
-      .createQueryBuilder("lead")
-      .leftJoin("lead.user", "user")
-      .where("lead.attemptCount > 0")
-      .andWhere("lead.attemptCount < :maxAttempts", { maxAttempts: MAX_ATTEMPTS_BEFORE_WHATSAPP })
-      .andWhere("lead.status IN (:...statuses)", { statuses: ["activo", "callback"] })
-      .andWhere(new Brackets((qb) => {
-        qb.where("lead.user IS NULL")
-          .orWhere("lead.isPermanentlyAssigned = true AND lead.user.id = :userId", { userId });
-      }));
-
-    if (excludedLeadIds.length > 0) {
-      query.andWhere("lead.id NOT IN (:...excludedIds)", { excludedIds: excludedLeadIds });
-    }
-
-    return await query
-      .orderBy("lead.nextCallDate", "ASC", "NULLS FIRST")
-      .addOrderBy("lead.attemptCount", "ASC")
-      .getOne();
-  };
-
-  /**
-   * Asigna un lead a un agente y registra en el historial de rotación
-   */
-  export const assignLeadToAgent = async (leadId: number, userId: number): Promise<Lead> => {
-    const lead = await leadRepository.findOne({ where: { id: leadId }, relations: ["user"] });
-    
+    // 2. Leads nuevos (sin trabajar).
     if (!lead) {
-      throw new Error(`Lead ${leadId} no encontrado`);
+      lead = await baseAvailableQuery(campaignIds)
+        .andWhere("lead.status = :s", { s: STATUS.ACTIVO })
+        .andWhere("lead.attemptCount = 0")
+        .orderBy("lead.createdAt", "ASC")
+        .getOne();
     }
 
-    if (lead.isPermanentlyAssigned && lead.user?.id !== userId) {
-      throw new Error(`Lead ${leadId} está permanentemente asignado a otro agente`);
+    // 3. Reintentos vencidos, rotando: no devolver el lead al último agente que lo intentó.
+    if (!lead) {
+      lead = await baseAvailableQuery(campaignIds)
+        .andWhere("lead.status = :s", { s: STATUS.RETRY })
+        .andWhere("lead.nextCallDate <= :now", { now })
+        .andWhere(
+          new Brackets((qb) => {
+            qb.where("lead.lastAttemptUserId IS NULL").orWhere(
+              "lead.lastAttemptUserId != :userId",
+              { userId }
+            );
+          })
+        )
+        .orderBy("lead.nextCallDate", "ASC")
+        .addOrderBy("lead.attemptCount", "ASC")
+        .getOne();
     }
 
-    // Actualizar asignación
-    lead.user = await userRepository.findOne({ where: { id: userId } });
-    
-    // Actualizar historial de rotación
-    const rotationHistory = lead.agentRotationHistory || [];
-    rotationHistory.push({
-      userId,
-      timestamp: new Date().toISOString(),
-    });
-    lead.agentRotationHistory = rotationHistory;
+    if (!lead) return null;
 
-    await leadRepository.save(lead);
-    return lead;
+    await assignToAgent(lead.id, userId);
+    fireCallbell(lead.phoneNumber, user.email);
+    return reload(lead.id);
   };
 
+  /** Asigna el lead al agente (user.leadId) y registra el historial de rotación. */
+  const assignToAgent = async (leadId: number, userId: number): Promise<void> => {
+    await userRepository.update(userId, { leadId });
+    const lead = await leadRepository.findOne({ where: { id: leadId } });
+    if (lead) {
+      const history = lead.agentRotationHistory || [];
+      history.push({ userId, timestamp: new Date().toISOString() });
+      lead.agentRotationHistory = history;
+      await leadRepository.save(lead);
+    }
+  };
+
+  /** Notifica a CallBell sin bloquear la respuesta (fire-and-forget). */
+  const fireCallbell = (phoneNumber: string, email?: string): void => {
+    if (!phoneNumber || !email) return;
+    CallBellHelper.assignUserToContact(phoneNumber, email).catch((error) =>
+      console.error("Error assigning user to CallBell contact:", error)
+    );
+  };
+
+  const reload = (leadId: number): Promise<Lead | null> =>
+    leadRepository.findOne({
+      where: { id: leadId },
+      relations: ["campaign", "lastTipification", "leadLogs", "leadSheet"],
+    });
+
   /**
-   * Tipifica un lead y ejecuta la acción correspondiente
+   * Tipifica el lead actual del agente, ejecuta la acción y LIBERA al agente
+   * (user.leadId = null) para que pueda solicitar el siguiente.
    */
   export const tipifyLead = async (
     leadId: number,
@@ -169,118 +184,103 @@ export module LeadLifecycleService {
     whatsappNumber?: string,
     nextCallDate?: string | Date
   ): Promise<Lead> => {
-    const lead = await leadRepository.findOne({ 
-      where: { id: leadId },
-      relations: ["user", "lastTipification"]
-    });
+    const lead = await leadRepository.findOne({ where: { id: leadId } });
+    if (!lead) throw new Error("Lead no encontrado");
 
-    if (!lead) {
-      throw new Error(`Lead ${leadId} no encontrado`);
-    }
+    const tipification = await tipificationRepository.findOne({ where: { id: tipificationId } });
+    if (!tipification) throw new Error("Tipificación no encontrada");
 
-    const tipification = await tipificationRepository.findOne({ 
-      where: { id: tipificationId } 
-    });
+    const isRetry = tipification.action === TipificationAction.REINTENTO;
+    const willReachMax = isRetry && lead.attemptCount + 1 >= MAX_ATTEMPTS;
+    const requiresWhatsapp = tipification.requiresWhatsapp || willReachMax;
 
-    if (!tipification) {
-      throw new Error(`Tipificación ${tipificationId} no encontrada`);
-    }
-
-    // Validar WhatsApp obligatorio si corresponde
-    if (tipification.requiresWhatsapp || lead.attemptCount >= MAX_ATTEMPTS_BEFORE_WHATSAPP - 1) {
+    if (requiresWhatsapp) {
       if (!whatsappNumber || whatsappNumber.trim() === "") {
-        throw new Error("Es obligatorio introducir un número de WhatsApp en el intento 6");
+        throw new Error(
+          "Es obligatorio introducir un número de WhatsApp en el último intento (6)."
+        );
       }
-      lead.whatsappNumber = whatsappNumber;
-      lead.isPermanentlyAssigned = true;
-    } else if (whatsappNumber) {
-      lead.whatsappNumber = whatsappNumber;
+      lead.whatsappNumber = whatsappNumber.trim();
+    } else if (whatsappNumber && whatsappNumber.trim()) {
+      lead.whatsappNumber = whatsappNumber.trim();
     }
 
-    // Registrar en histórico
-    const history = leadTipificationHistoryRepository.create({
-      leadId,
-      tipificationId,
-      userId,
-      observation,
-      attemptCountAtTipification: lead.attemptCount,
-    });
-    await leadTipificationHistoryRepository.save(history);
+    // Histórico de tipificaciones (la cuenta de intentos en el momento de tipificar).
+    await leadTipificationHistoryRepository.save(
+      leadTipificationHistoryRepository.create({
+        leadId,
+        tipificationId,
+        userId,
+        observation,
+        attemptCountAtTipification: lead.attemptCount,
+      })
+    );
 
-    // Actualizar última tipificación
-    lead.lastTipification = tipification;
+    lead.lastTipificationId = tipification.id;
+    // La rotación (no devolver el lead al mismo agente en el siguiente intento) aplica a los
+    // reintentos por NO CONTACTO. En un contacto efectivo (callback / interesado ocupado) el
+    // lead puede volver al mismo agente, así que no se marca como "último agente".
+    lead.lastAttemptUserId =
+      tipification.category === TipificationCategory.NO_CONTACTO ? userId : null;
 
-    // Callback manual: la fecha la elige el agente en el frontend.
-    if (tipification.action === TipificationAction.CALLBACK && nextCallDate) {
-      lead.nextCallDate = new Date(nextCallDate);
-    }
-
-    // Ejecutar acción de la tipificación
-    await executeTipificationAction(lead, tipification, userId);
-
-    return lead;
-  };
-
-  /**
-   * Ejecuta la acción correspondiente según la tipificación
-   */
-  const executeTipificationAction = async (
-    lead: Lead,
-    tipification: Tipification,
-    userId: number
-  ): Promise<void> => {
     switch (tipification.action) {
       case TipificationAction.CERRAR:
-        lead.status = "muerto";
-        lead.user = null; // Liberar agente
+        lead.status = STATUS.MUERTO;
+        lead.nextCallDate = null;
+        break;
+
+      case TipificationAction.VENTAS:
+        // Pasa a ventas: sale de la cola de llamadas y queda marcado como Venta
+        // en el sistema antiguo (para liquidaciones/contratos).
+        lead.status = STATUS.MUERTO;
+        lead.leadStateId = LeadStates.Venta;
+        lead.nextCallDate = null;
+        break;
+
+      case TipificationAction.AGENDA:
+        // Cita agendada: sale de la cola de llamadas.
+        lead.status = STATUS.MUERTO;
+        lead.nextCallDate = null;
+        break;
+
+      case TipificationAction.SEGUIMIENTO:
+        // Vuelve a la cola como activo (sin contar como nuevo: attemptCount se mantiene).
+        lead.status = STATUS.ACTIVO;
+        lead.nextCallDate = null;
+        break;
+
+      case TipificationAction.CALLBACK:
+        lead.status = STATUS.CALLBACK;
+        if (nextCallDate) lead.nextCallDate = new Date(nextCallDate);
         break;
 
       case TipificationAction.REINTENTO:
         lead.attemptCount += 1;
-        
-        if (lead.attemptCount >= MAX_ATTEMPTS_BEFORE_WHATSAPP) {
-          // Forzar WhatsApp y asignación permanente
+        if (lead.attemptCount >= MAX_ATTEMPTS) {
+          // Intento 6: WhatsApp obligatorio (ya validado), bloqueo permanente al agente
+          // y fuera de la cola de rotación.
           lead.isPermanentlyAssigned = true;
-          lead.status = "activo";
+          lead.permanentAgentId = userId;
+          lead.status = STATUS.MUERTO;
+          lead.nextCallDate = null;
         } else {
-          // Calcular próxima fecha de reintento
-          const retryHours = tipification.retryHours || RETRY_HOURS_BY_ATTEMPT[lead.attemptCount] || 24;
+          const retryHours =
+            tipification.retryHours || RETRY_HOURS_BY_ATTEMPT[lead.attemptCount] || 24;
           lead.nextCallDate = new Date(Date.now() + retryHours * 60 * 60 * 1000);
-          lead.status = "callback";
-          
-          // Liberar lead para que vaya a otro agente
-          lead.user = null;
+          lead.status = STATUS.RETRY;
         }
-        break;
-
-      case TipificationAction.CALLBACK:
-        lead.status = "callback";
-        // La fecha ya debería estar establecida por el frontend
-        break;
-
-      case TipificationAction.VENTAS:
-        lead.status = "muerto"; // Sale de la cola de llamadas
-        lead.user = null;
-        // Aquí se podría crear un registro en la tabla de ventas/contratos
-        break;
-
-      case TipificationAction.AGENDA:
-        lead.status = "muerto"; // Sale de la cola
-        lead.user = null;
-        break;
-
-      case TipificationAction.SEGUIMIENTO:
-        lead.status = "activo";
-        lead.user = null; // Vuelve a la cola para seguimiento
         break;
     }
 
     await leadRepository.save(lead);
+
+    // Liberar al agente: su lead actual deja de estar asignado para que pueda pedir el siguiente.
+    await userRepository.update(userId, { leadId: null });
+
+    return lead;
   };
 
-  /**
-   * Obtiene todas las tipificaciones activas agrupadas por categoría
-   */
+  /** Tipificaciones activas agrupadas por categoría (para el modal del frontend). */
   export const getAllTipifications = async (): Promise<{
     contacto: Tipification[];
     no_contacto: Tipification[];
@@ -288,9 +288,8 @@ export module LeadLifecycleService {
   }> => {
     const tipifications = await tipificationRepository.find({
       where: { isActive: true },
-      order: { category: "ASC", name: "ASC" },
+      order: { id: "ASC" },
     });
-
     return {
       contacto: tipifications.filter((t) => t.category === TipificationCategory.CONTACTO),
       no_contacto: tipifications.filter((t) => t.category === TipificationCategory.NO_CONTACTO),
@@ -298,35 +297,81 @@ export module LeadLifecycleService {
     };
   };
 
-  /**
-   * Obtiene estadísticas de cola para un dashboard
-   */
-  export const getQueueStats = async (userId?: number) => {
+  /** Contadores para la barra de cola del gestor de leads (por campañas del agente). */
+  export const getQueueStats = async (
+    userId: number
+  ): Promise<{ availableInQueue: number; callbacksToday: number }> => {
     const now = new Date();
+    let campaignIds: number[];
+    try {
+      ({ campaignIds } = await getUserAndCampaigns(userId));
+    } catch {
+      // Sin grupo/campañas: no hay cola que mostrar.
+      return { availableInQueue: 0, callbacksToday: 0 };
+    }
 
-    // Leads disponibles en cola (sin asignar o asignados al usuario)
-    const availableInQueue = await leadRepository
-      .createQueryBuilder("lead")
-      .where("lead.status = :status", { status: "activo" })
-      .andWhere("lead.attemptCount < :maxAttempts", { maxAttempts: MAX_ATTEMPTS_BEFORE_WHATSAPP })
-      .andWhere(new Brackets((qb) => {
-        qb.where("lead.user IS NULL");
-        if (userId) {
-          qb.orWhere("lead.user.id = :userId", { userId });
-        }
-      }))
+    // Leads listos para llamar AHORA: nuevos + callbacks/reintentos vencidos.
+    const availableInQueue = await baseAvailableQuery(campaignIds)
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where(
+            new Brackets((q) => {
+              q.where("lead.status = :activo", { activo: STATUS.ACTIVO }).andWhere(
+                "lead.attemptCount = 0"
+              );
+            })
+          ).orWhere(
+            new Brackets((q) => {
+              q.where("lead.status IN (:...due)", {
+                due: [STATUS.CALLBACK, STATUS.RETRY],
+              }).andWhere("lead.nextCallDate <= :now", { now });
+            })
+          );
+        })
+      )
       .getCount();
 
-    // Callbacks para hoy
-    const callbacksToday = await leadRepository
-      .createQueryBuilder("lead")
-      .where("lead.status = :status", { status: "callback" })
+    const callbacksToday = await baseAvailableQuery(campaignIds)
+      .andWhere("lead.status = :s", { s: STATUS.CALLBACK })
       .andWhere("lead.nextCallDate <= :now", { now })
       .getCount();
 
-    return {
-      availableInQueue,
-      callbacksToday,
-    };
+    return { availableInQueue, callbacksToday };
+  };
+
+  /** Tipificaciones por defecto (idempotente): solo inserta si la tabla está vacía. */
+  export const seedDefaultTipifications = async (): Promise<void> => {
+    const existing = await tipificationRepository.count();
+    if (existing > 0) return;
+
+    const C = TipificationCategory;
+    const A = TipificationAction;
+    const defaults: Array<Partial<Tipification>> = [
+      // CONTACTO EFECTIVO
+      { name: "Interesado", category: C.CONTACTO, action: A.VENTAS },
+      { name: "No interesado", category: C.CONTACTO, action: A.CERRAR },
+      { name: "Ya es cliente", category: C.CONTACTO, action: A.CERRAR },
+      { name: "Volver a llamar", category: C.CONTACTO, action: A.CALLBACK },
+      { name: "No es el momento", category: C.CONTACTO, action: A.REINTENTO, retryHours: 168 },
+      { name: "Pide información", category: C.CONTACTO, action: A.SEGUIMIENTO },
+      { name: "Interesado pero ocupado", category: C.CONTACTO, action: A.REINTENTO, retryHours: 2 },
+      { name: "Cita agendada", category: C.CONTACTO, action: A.AGENDA },
+      // NO CONTACTO (todas reintento automático con los tiempos por intento)
+      { name: "No contesta", category: C.NO_CONTACTO, action: A.REINTENTO },
+      { name: "Ocupado", category: C.NO_CONTACTO, action: A.REINTENTO },
+      { name: "Apagado / fuera de cobertura", category: C.NO_CONTACTO, action: A.REINTENTO },
+      { name: "Cuelga llamada", category: C.NO_CONTACTO, action: A.REINTENTO },
+      { name: "Salta buzón de voz", category: C.NO_CONTACTO, action: A.REINTENTO },
+      { name: "Teléfono no disponible temporalmente", category: C.NO_CONTACTO, action: A.REINTENTO },
+      // DESCARTE
+      { name: "Número incorrecto", category: C.DESCARTE, action: A.CERRAR },
+      { name: "No existe", category: C.DESCARTE, action: A.CERRAR },
+      { name: "Datos falsos", category: C.DESCARTE, action: A.CERRAR },
+      { name: "No llamar", category: C.DESCARTE, action: A.CERRAR },
+      { name: "Spam / lead basura", category: C.DESCARTE, action: A.CERRAR },
+    ];
+
+    await tipificationRepository.save(defaults.map((d) => tipificationRepository.create(d)));
+    console.log(`Seeded ${defaults.length} tipificaciones por defecto`);
   };
 }

@@ -118,6 +118,20 @@ export class Lead {
   })
   isPermanentlyAssigned: boolean;
 
+  @Column({
+    type: "int",
+    nullable: true,
+    comment: "Agente al que queda asignado el lead de forma permanente (tras intento 6)",
+  })
+  permanentAgentId?: number;
+
+  @Column({
+    type: "int",
+    nullable: true,
+    comment: "Último agente que tipificó/intentó el lead (para no reasignarlo al mismo en el siguiente intento)",
+  })
+  lastAttemptUserId?: number;
+
   // Tipificación actual y histórico
   @Column({ nullable: true })
   lastTipificationId?: number;

@@ -1,5 +1,6 @@
 require("dotenv").config();
 import path from "path";
+import { LeadLifecycleService } from "./services/lead-lifecycle.service";
 import campaignsRouter from "./routes/campaigns.router";
 import channelsRouter from "./routes/channels.router";
 import comparativasRouter from "./routes/comparativa.route";
@@ -183,6 +184,12 @@ dataSource
     console.log("Data Source initialized");
     // Crear usuario admin si no existe
     await seedAdminUser();
+    // Sembrar tipificaciones por defecto del ciclo de vida de leads (idempotente)
+    try {
+      await LeadLifecycleService.seedDefaultTipifications();
+    } catch (error) {
+      console.error("❌ Error sembrando tipificaciones:", error);
+    }
   })
   .catch((err) => {
     console.error("Error during Data Source initialization:", err);

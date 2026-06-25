@@ -361,10 +361,10 @@ export module LeadsController {
 
   // === Ciclo de vida de leads (PRES-018 B2b) ===
 
-  export const getNextAvailableLead = async (req, res, next) => {
+  export const requestNextLead = async (req, res, next) => {
     try {
       const userId = req.user.userId;
-      const lead = await LeadLifecycleService.getNextAvailableLead(userId);
+      const lead = await LeadLifecycleService.requestNextLead(userId);
 
       if (!lead) {
         return res.status(404).json({
@@ -374,32 +374,13 @@ export module LeadsController {
       }
 
       res.json(lead);
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  export const assignLeadToAgent = async (req, res, next) => {
-    try {
-      const { leadUuid } = req.params;
-      const userId = req.user.userId;
-
-      // Obtener lead por UUID para pasar el ID al servicio
-      const lead = await LeadsService.getOne({ uuid: leadUuid });
-      if (!lead) {
-        return res.status(404).json({
-          success: false,
-          error: { message: "Lead no encontrado" },
-        });
-      }
-
-      const assignedLead = await LeadLifecycleService.assignLeadToAgent(lead.id, userId);
-      res.json(assignedLead);
     } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        error: { message: error.message },
-      });
+      // Motivos de negocio (sin grupo / sin campañas) → 400 con mensaje en español.
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("grupo") || msg.includes("campañas")) {
+        return res.status(400).json({ success: false, error: { message: msg } });
+      }
+      next(error);
     }
   };
 

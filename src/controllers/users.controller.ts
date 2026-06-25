@@ -147,6 +147,7 @@ export module UsersController {
             leadLogs: { leadState: true, user: true },
             campaign: true,
             leadSheet: true,
+            lastTipification: true,
           },
         }
       );
