@@ -166,7 +166,8 @@ export module LeadLifecycleService {
     tipificationId: number,
     userId: number,
     observation?: string,
-    whatsappNumber?: string
+    whatsappNumber?: string,
+    nextCallDate?: string | Date
   ): Promise<Lead> => {
     const lead = await leadRepository.findOne({ 
       where: { id: leadId },
@@ -208,6 +209,11 @@ export module LeadLifecycleService {
 
     // Actualizar última tipificación
     lead.lastTipification = tipification;
+
+    // Callback manual: la fecha la elige el agente en el frontend.
+    if (tipification.action === TipificationAction.CALLBACK && nextCallDate) {
+      lead.nextCallDate = new Date(nextCallDate);
+    }
 
     // Ejecutar acción de la tipificación
     await executeTipificationAction(lead, tipification, userId);

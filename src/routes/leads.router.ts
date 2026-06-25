@@ -24,6 +24,13 @@ router.post("/assign-to-queue", authenticateJWT, LeadsController.assignToQueue);
 
 router.get("/count", authenticateJWT, LeadsController.count);
 
+// Ciclo de vida de leads (PRES-018 B2b - rotación y tipificaciones)
+// IMPORTANTE: estas rutas GET estáticas deben ir ANTES de "/:leadUuid"
+// o Express las captura como un uuid y nunca llegan a su controlador.
+router.get("/next-available", authenticateJWT, LeadsController.getNextAvailableLead);
+router.get("/tipifications", authenticateJWT, LeadsController.getTipifications);
+router.get("/queue-stats", authenticateJWT, LeadsController.getQueueStats);
+
 router.get("/:leadUuid", authenticateJWT, LeadsController.getOne);
 
 router.delete("/:leadUuid", authenticateJWT, LeadsController.deleteLead);
@@ -36,12 +43,9 @@ router.patch("/:leadUuid", authenticateJWT, upload.single("billFile"), LeadsCont
 
 router.patch("/state/:leadUuid", authenticateJWT, LeadsController.changeState);
 
-// Ciclo de vida de leads (PRES-018 B2b - rotación y tipificaciones)
-router.get("/next-available", authenticateJWT, LeadsController.getNextAvailableLead);
+// Acciones del ciclo de vida sobre un lead concreto (POST con sub-ruta, no colisionan)
 router.post("/:leadUuid/assign", authenticateJWT, LeadsController.assignLeadToAgent);
 router.post("/:leadUuid/tipify", authenticateJWT, LeadsController.tipifyLead);
-router.get("/tipifications", authenticateJWT, LeadsController.getTipifications);
-router.get("/queue-stats", authenticateJWT, LeadsController.getQueueStats);
 
 //Lead Document
 router.post(

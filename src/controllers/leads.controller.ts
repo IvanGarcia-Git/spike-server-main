@@ -406,7 +406,7 @@ export module LeadsController {
   export const tipifyLead = async (req, res, next) => {
     try {
       const { leadUuid } = req.params;
-      const { tipificationId, observation, whatsappNumber } = req.body;
+      const { tipificationId, observation, whatsappNumber, nextCallDate } = req.body;
       const userId = req.user.userId;
 
       const lead = await LeadsService.getOne({ uuid: leadUuid });
@@ -422,7 +422,8 @@ export module LeadsController {
         tipificationId,
         userId,
         observation,
-        whatsappNumber
+        whatsappNumber,
+        nextCallDate
       );
 
       res.json(updatedLead);
