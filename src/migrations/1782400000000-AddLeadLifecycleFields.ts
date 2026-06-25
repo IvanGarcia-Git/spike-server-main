@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey } from "typeorm";
+import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey, Table, TableIndex } from "typeorm";
 
 export class AddLeadLifecycleFields1782400000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -202,9 +202,8 @@ export class AddLeadLifecycleFields1782400000000 implements MigrationInterface {
     // 5. Añadir índice para búsquedas por status y next_call_date
     await queryRunner.createIndex(
       "lead",
-      new TableColumn({
+      new TableIndex({
         name: "idx_lead_status_next_call",
-        type: "index",
         columnNames: ["status", "next_call_date"],
       })
     );
