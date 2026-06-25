@@ -93,6 +93,15 @@ export class Comparativa {
   })
   energias?: number[];
 
+  // Consumo de GAS (kWh). El front lo envía como `energia` (luz usa `energias[]`).
+  // Sin esta columna el consumo de gas no se persistía y se perdía al editar/exportar.
+  @Column("decimal", {
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
+  energia?: number;
+
   @Column("int", {
     nullable: true,
   })
