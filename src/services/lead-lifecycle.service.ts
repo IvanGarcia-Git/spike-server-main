@@ -35,6 +35,16 @@ export module LeadLifecycleService {
   // Estados del ciclo de vida (columna `lead.status`).
   const STATUS = { ACTIVO: "activo", CALLBACK: "callback", RETRY: "retry", MUERTO: "muerto" };
 
+  /**
+   * Fin del día (23:59:59.999) de la fecha dada. Los callbacks agendados para HOY (a cualquier
+   * hora) deben poder llamarse y contarse durante todo el día, no solo cuando llega su hora.
+   */
+  const endOfDay = (d: Date): Date => {
+    const e = new Date(d);
+    e.setHours(23, 59, 59, 999);
+    return e;
+  };
+
   /** Carga el usuario (con grupos) y las campañas a las que tiene acceso. */
   const getUserAndCampaigns = async (
     userId: number
@@ -86,6 +96,7 @@ export module LeadLifecycleService {
   export const requestNextLead = async (userId: number): Promise<Lead | null> => {
     const { user, campaignIds } = await getUserAndCampaigns(userId);
     const now = new Date();
+    const endToday = endOfDay(now);
 
     // 0. Cola manual/automática (agendado a usuario + reglas de asignación PRES-018 B2a).
     const leadQueueRepository = dataSource.getRepository(LeadQueue);
@@ -105,10 +116,11 @@ export module LeadLifecycleService {
       await leadQueueRepository.delete({ id: inQueue.id });
     }
 
-    // 1. Callbacks vencidos (máxima prioridad tras la cola).
+    // 1. Callbacks de HOY o vencidos (máxima prioridad tras la cola). Se incluye todo el día
+    //    de hoy para que un callback agendado para más tarde hoy también se pueda atender.
     let lead = await baseAvailableQuery(campaignIds)
       .andWhere("lead.status = :s", { s: STATUS.CALLBACK })
-      .andWhere("lead.nextCallDate <= :now", { now })
+      .andWhere("lead.nextCallDate <= :endToday", { endToday })
       .orderBy("lead.nextCallDate", "ASC")
       .getOne();
 
@@ -302,6 +314,7 @@ export module LeadLifecycleService {
     userId: number
   ): Promise<{ availableInQueue: number; callbacksToday: number }> => {
     const now = new Date();
+    const endToday = endOfDay(now);
     let campaignIds: number[];
     try {
       ({ campaignIds } = await getUserAndCampaigns(userId));
@@ -310,7 +323,7 @@ export module LeadLifecycleService {
       return { availableInQueue: 0, callbacksToday: 0 };
     }
 
-    // Leads listos para llamar AHORA: nuevos + callbacks/reintentos vencidos.
+    // Leads listos para llamar: nuevos + callbacks de hoy/vencidos + reintentos vencidos.
     const availableInQueue = await baseAvailableQuery(campaignIds)
       .andWhere(
         new Brackets((qb) => {
@@ -320,20 +333,31 @@ export module LeadLifecycleService {
                 "lead.attemptCount = 0"
               );
             })
-          ).orWhere(
-            new Brackets((q) => {
-              q.where("lead.status IN (:...due)", {
-                due: [STATUS.CALLBACK, STATUS.RETRY],
-              }).andWhere("lead.nextCallDate <= :now", { now });
-            })
-          );
+          )
+            .orWhere(
+              new Brackets((q) => {
+                q.where("lead.status = :cb", { cb: STATUS.CALLBACK }).andWhere(
+                  "lead.nextCallDate <= :endToday",
+                  { endToday }
+                );
+              })
+            )
+            .orWhere(
+              new Brackets((q) => {
+                q.where("lead.status = :rt", { rt: STATUS.RETRY }).andWhere(
+                  "lead.nextCallDate <= :now",
+                  { now }
+                );
+              })
+            );
         })
       )
       .getCount();
 
+    // "Callbacks hoy" = callbacks agendados para hoy (a cualquier hora) o ya vencidos.
     const callbacksToday = await baseAvailableQuery(campaignIds)
       .andWhere("lead.status = :s", { s: STATUS.CALLBACK })
-      .andWhere("lead.nextCallDate <= :now", { now })
+      .andWhere("lead.nextCallDate <= :endToday", { endToday })
       .getCount();
 
     return { availableInQueue, callbacksToday };
