@@ -76,8 +76,9 @@ export module LeadLifecycleService {
     leadRepository
       .createQueryBuilder("lead")
       .where("lead.campaignId IN (:...campaignIds)", { campaignIds })
-      .andWhere("lead.status != :muerto", { muerto: STATUS.MUERTO })
-      .andWhere("lead.isPermanentlyAssigned = false")
+      // status NULL/'' (lead recién creado) también cuenta: solo se excluye el cerrado ('muerto').
+      .andWhere("(lead.status IS NULL OR lead.status != :muerto)", { muerto: STATUS.MUERTO })
+      .andWhere("(lead.isPermanentlyAssigned IS NULL OR lead.isPermanentlyAssigned = false)")
       .andWhere("lead.shift IS NULL")
       .andWhere(
         new Brackets((qb) => {
@@ -124,11 +125,14 @@ export module LeadLifecycleService {
       .orderBy("lead.nextCallDate", "ASC")
       .getOne();
 
-    // 2. Leads nuevos (sin trabajar).
+    // 2. Leads nuevos (sin trabajar): 0 intentos y no agendados (callback/retry). Incluye
+    //    status 'activo', NULL o '' (un lead recién creado puede no traer estado todavía).
     if (!lead) {
       lead = await baseAvailableQuery(campaignIds)
-        .andWhere("lead.status = :s", { s: STATUS.ACTIVO })
-        .andWhere("lead.attemptCount = 0")
+        .andWhere("(lead.attemptCount IS NULL OR lead.attemptCount = 0)")
+        .andWhere("(lead.status IS NULL OR lead.status NOT IN (:...notNew))", {
+          notNew: [STATUS.CALLBACK, STATUS.RETRY, STATUS.MUERTO],
+        })
         .orderBy("lead.createdAt", "ASC")
         .getOne();
     }
@@ -329,8 +333,9 @@ export module LeadLifecycleService {
         new Brackets((qb) => {
           qb.where(
             new Brackets((q) => {
-              q.where("lead.status = :activo", { activo: STATUS.ACTIVO }).andWhere(
-                "lead.attemptCount = 0"
+              q.where("(lead.attemptCount IS NULL OR lead.attemptCount = 0)").andWhere(
+                "(lead.status IS NULL OR lead.status NOT IN (:...notNew))",
+                { notNew: [STATUS.CALLBACK, STATUS.RETRY, STATUS.MUERTO] }
               );
             })
           )
