@@ -319,16 +319,33 @@ export module LeadLifecycleService {
   ): Promise<{ availableInQueue: number; callbacksToday: number }> => {
     const now = new Date();
     const endToday = endOfDay(now);
+
+    // Cola PERSONAL del agente (asignación manual/automática por reglas PRES-018 B2a).
+    // requestNextLead la sirve con MÁXIMA prioridad (paso 0), así que cuenta como "leads
+    // en cola" aunque su leadStateId sea AgendarUsuario (5) — estado que baseAvailableQuery
+    // excluye del pool compartido. Sin contarla, un lead recién creado en una campaña que
+    // las reglas asignan a este agente no aparecía nunca en el contador (el bug reportado).
+    // Se descartan entradas cuyo lead ya esté cerrado ('muerto').
+    const personalQueue = await dataSource
+      .getRepository(LeadQueue)
+      .createQueryBuilder("q")
+      .innerJoin(Lead, "lead", "lead.id = q.leadId")
+      .where("q.userId = :userId", { userId })
+      .andWhere("(lead.status IS NULL OR lead.status != :muerto)", { muerto: STATUS.MUERTO })
+      .getCount();
+
     let campaignIds: number[];
     try {
       ({ campaignIds } = await getUserAndCampaigns(userId));
     } catch {
-      // Sin grupo/campañas: no hay cola que mostrar.
-      return { availableInQueue: 0, callbacksToday: 0 };
+      // Sin grupo/campañas no hay pool compartido, pero la cola personal sí se puede mostrar.
+      return { availableInQueue: personalQueue, callbacksToday: 0 };
     }
 
-    // Leads listos para llamar: nuevos + callbacks de hoy/vencidos + reintentos vencidos.
-    const availableInQueue = await baseAvailableQuery(campaignIds)
+    // Pool compartido listo para llamar: nuevos + callbacks de hoy/vencidos + reintentos vencidos.
+    // (Los leads de la cola personal tienen leadStateId=AgendarUsuario, que baseAvailableQuery
+    //  excluye, por lo que NO hay doble conteo al sumarlos.)
+    const sharedAvailable = await baseAvailableQuery(campaignIds)
       .andWhere(
         new Brackets((qb) => {
           qb.where(
@@ -365,7 +382,7 @@ export module LeadLifecycleService {
       .andWhere("lead.nextCallDate <= :endToday", { endToday })
       .getCount();
 
-    return { availableInQueue, callbacksToday };
+    return { availableInQueue: personalQueue + sharedAvailable, callbacksToday };
   };
 
   /** Tipificaciones por defecto (idempotente): solo inserta si la tabla está vacía. */
