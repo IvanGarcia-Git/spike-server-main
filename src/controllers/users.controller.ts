@@ -148,6 +148,7 @@ export module UsersController {
             campaign: true,
             leadSheet: true,
             lastTipification: true,
+            tipificationHistory: { tipification: true, user: true },
           },
         }
       );
