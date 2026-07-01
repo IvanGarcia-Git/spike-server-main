@@ -366,10 +366,22 @@ export module LeadLifecycleService {
             )
             .orWhere(
               new Brackets((q) => {
-                q.where("lead.status = :rt", { rt: STATUS.RETRY }).andWhere(
-                  "lead.nextCallDate <= :now",
-                  { now }
-                );
+                q.where("lead.status = :rt", { rt: STATUS.RETRY })
+                  .andWhere("lead.nextCallDate <= :now", { now })
+                  // Guard de rotación IDÉNTICO a requestNextLead paso 3: un reintento
+                  // vencido cuyo último intento fue de ESTE agente NO se le vuelve a
+                  // servir (rotación). Sin este filtro el contador cuenta reintentos
+                  // que requestNextLead rota fuera → "hay N en cola pero no me sale
+                  // ninguno" (el bug reportado): un agente solo en su campaña acumula
+                  // reintentos propios que jamás podrá solicitar pero sí ve contados.
+                  .andWhere(
+                    new Brackets((r) => {
+                      r.where("lead.lastAttemptUserId IS NULL").orWhere(
+                        "lead.lastAttemptUserId != :userId",
+                        { userId }
+                      );
+                    })
+                  );
               })
             );
         })
